@@ -1,4 +1,20 @@
-# punycoder (development version)
+# punycoder 1.1.0
+
+## New Features
+
+* `host_normalize()` converts hostnames to their canonical comparison form
+  under a pinned UTS-46 profile (non-transitional, `UseSTD3ASCIIRules`,
+  `CheckHyphens`, `CheckBidi`, `CheckJoiners`, NFC, DNS length verification),
+  returning lowercase ASCII A-labels or `NA` for invalid input. The
+  mapping/NFC/validation pipeline is implemented in-tree over vendored Unicode
+  16.0.0 data, so behavior is independent of whether libidn2 is present.
+* `normalization_profile_info()` exposes the machine-readable profile identity
+  (`profile`, `unicode_version`, and the profile parameters) for downstream
+  reproducibility keys.
+
+# punycoder 1.0.0
+
+First CRAN release.
 
 ## Bug Fixes
 
@@ -12,11 +28,6 @@
 * Strict decoding now enforces RFC 5891 canonical A-label form: a decoded
   label must re-encode to itself. Non-canonical encodings (e.g. uppercase
   payloads) are rejected in strict mode while non-strict decoding stays lenient.
-
-# punycoder 1.0.0
-
-## New Features
-
 * Initial release of punycoder package
 * Core punycode encoding and decoding functions (`puny_encode()`, `puny_decode()`)
 * URL-aware processing functions (`url_encode()`, `url_decode()`, `parse_url()`)

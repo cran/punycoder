@@ -36,12 +36,12 @@ knitr::opts_chunk$set(
 
 ## ----validation, eval=FALSE---------------------------------------------------
 # # Check if domain is already punycode
-# is_punycode("xn--caf-dma.com")   # TRUE
-# is_punycode("café.com")          # FALSE
+# is_punycode("xn--caf-dma.com") # TRUE
+# is_punycode("café.com") # FALSE
 # 
 # # Check if domain contains Unicode characters
-# is_idn("café.com")               # TRUE
-# is_idn("example.com")            # FALSE
+# is_idn("café.com") # TRUE
+# is_idn("example.com") # FALSE
 # 
 # # Comprehensive domain validation
 # result <- validate_domain(c("café.com", "invalid..domain", "valid.org"))
@@ -85,7 +85,7 @@ knitr::opts_chunk$set(
 ## ----error-handling, eval=FALSE-----------------------------------------------
 # # Strict validation (default)
 # try({
-#   puny_encode(c("valid.com", ""))  # Empty string causes error
+#   puny_encode(c("valid.com", "")) # Empty string causes error
 # })
 # 
 # # Non-strict mode returns NA for invalid input
