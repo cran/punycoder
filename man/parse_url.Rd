@@ -2,35 +2,53 @@
 % Please edit documentation in R/url-utils.R
 \name{parse_url}
 \alias{parse_url}
-\title{Parse URLs with internationalized domain name handling}
+\title{Best-effort host extraction from a URL-shaped string}
 \usage{
 parse_url(url, encode_domains = FALSE)
 }
 \arguments{
-\item{url}{Character vector of URLs to parse}
+\item{url}{Character vector of URL-shaped strings to split}
 
 \item{encode_domains}{Logical flag; encode parsed host names to ASCII.}
 }
 \value{
 An object of class \code{"punycoder_parsed_url"} (a named list)
-  with components:
-  \describe{
-    \item{scheme}{Character vector of URL schemes (e.g., \code{"https"}).}
-    \item{domain}{Character vector of domain names.}
-    \item{port}{Integer vector of port numbers.}
-    \item{path}{Character vector of URL paths.}
-    \item{query}{Character vector of query strings.}
-    \item{fragment}{Character vector of fragment identifiers.}
-  }
-  Each component has one element per input URL. Invalid URLs yield
-  \code{NA} components. For valid URLs without an explicit path,
-  \code{path} is returned as \code{""}.
+with components:
+\describe{
+\item{scheme}{Character vector of URL schemes (e.g., \code{"https"}).}
+\item{domain}{Character vector of domain names.}
+\item{port}{Integer vector of port numbers.}
+\item{path}{Character vector of URL paths.}
+\item{query}{Character vector of query strings.}
+\item{fragment}{Character vector of fragment identifiers.}
+}
+Each component has one element per input URL. Invalid URLs yield
+\code{NA} components. For valid URLs without an explicit path,
+\code{path} is returned as \code{""}.
 }
 \description{
-Parses URLs and returns a structured list with proper handling of
-internationalized domain names. This function provides both Unicode
-and ASCII representations of domain components.
+Splits a URL-shaped string into coarse components with a hand-rolled
+splitter, primarily to extract the host for internationalized-domain-name
+handling, optionally ASCII-encoding it.
 }
+\details{
+This is \strong{best-effort host extraction, not a conformant URL parser.} It is
+\emph{not} RFC 3986 / WHATWG URL compliant: there is no percent encoding/decoding,
+no scheme validation, no robust port/path/query semantics, no full IPv6
+(zone IDs / RFC 6874 are unhandled), and no serialization guarantees. The
+non-host components are returned as a convenience only; for real URL parsing
+and canonicalization use a dedicated URL package (e.g. \code{rurl}). This surface
+is slated for eventual removal in favor of \code{rurl} consuming punycoder's host
+functions.
+}
+\section{Deprecated}{
+
+This function is deprecated and slated for removal in a future release. For
+URL parsing and canonicalization use a dedicated URL package (e.g. \code{rurl});
+for host-only encoding pass the host alone to \code{\link[=host_normalize]{host_normalize()}} or
+\code{\link[=puny_encode]{puny_encode()}}.
+}
+
 \examples{
 \donttest{
 # Parse URL with Unicode domain
@@ -48,5 +66,6 @@ parse_url(urls)
 }
 \seealso{
 \code{\link{url_encode}}, \code{\link{url_decode}} for URL
-  transformation with IDN handling.
+transformation with IDN handling.
 }
+\keyword{internal}

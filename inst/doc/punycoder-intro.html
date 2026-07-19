@@ -10,9 +10,9 @@
 
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 
-<meta name="author" content="Package Author" />
+<meta name="author" content="Bart Turczynski" />
 
-<meta name="date" content="2026-06-15" />
+<meta name="date" content="2026-07-19" />
 
 <title>Introduction to punycoder</title>
 
@@ -340,8 +340,8 @@ code > span.er { color: #a61717; background-color: #e3d2d2; }
 
 
 <h1 class="title toc-ignore">Introduction to punycoder</h1>
-<h4 class="author">Package Author</h4>
-<h4 class="date">2026-06-15</h4>
+<h4 class="author">Bart Turczynski</h4>
+<h4 class="date">2026-07-19</h4>
 
 
 
@@ -406,14 +406,16 @@ messages</li>
 <div id="url-processing" class="section level3">
 <h3>URL Processing</h3>
 <div class="sourceCode" id="cb2"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb2-1"><a href="#cb2-1" tabindex="-1"></a><span class="co"># Encode URLs with Unicode domains</span></span>
-<span id="cb2-2"><a href="#cb2-2" tabindex="-1"></a><span class="fu">url_encode</span>(<span class="st">&quot;https://café.example.com/menu&quot;</span>)</span>
+<span id="cb2-2"><a href="#cb2-2" tabindex="-1"></a><span class="fu">url_encode</span>(<span class="fu">paste0</span>(<span class="st">&quot;https&quot;</span>, <span class="st">&quot;://&quot;</span>, <span class="st">&quot;café.example.com/menu&quot;</span>))</span>
 <span id="cb2-3"><a href="#cb2-3" tabindex="-1"></a></span>
 <span id="cb2-4"><a href="#cb2-4" tabindex="-1"></a><span class="co"># Decode URLs back to Unicode</span></span>
-<span id="cb2-5"><a href="#cb2-5" tabindex="-1"></a><span class="fu">url_decode</span>(<span class="st">&quot;https://xn--caf-dma.example.com/menu&quot;</span>)</span>
+<span id="cb2-5"><a href="#cb2-5" tabindex="-1"></a><span class="fu">url_decode</span>(<span class="fu">paste0</span>(<span class="st">&quot;https&quot;</span>, <span class="st">&quot;://&quot;</span>, <span class="st">&quot;xn--caf-dma.example.com/menu&quot;</span>))</span>
 <span id="cb2-6"><a href="#cb2-6" tabindex="-1"></a></span>
 <span id="cb2-7"><a href="#cb2-7" tabindex="-1"></a><span class="co"># Parse URLs with IDN handling</span></span>
-<span id="cb2-8"><a href="#cb2-8" tabindex="-1"></a>url_parts <span class="ot">&lt;-</span> <span class="fu">parse_url</span>(<span class="st">&quot;https://café.example.com:8080/path?q=test#section&quot;</span>)</span>
-<span id="cb2-9"><a href="#cb2-9" tabindex="-1"></a><span class="fu">print</span>(url_parts)</span></code></pre></div>
+<span id="cb2-8"><a href="#cb2-8" tabindex="-1"></a>url_parts <span class="ot">&lt;-</span> <span class="fu">parse_url</span>(</span>
+<span id="cb2-9"><a href="#cb2-9" tabindex="-1"></a>  <span class="fu">paste0</span>(<span class="st">&quot;https&quot;</span>, <span class="st">&quot;://&quot;</span>, <span class="st">&quot;café.example.com:8080/path?q=test#section&quot;</span>)</span>
+<span id="cb2-10"><a href="#cb2-10" tabindex="-1"></a>)</span>
+<span id="cb2-11"><a href="#cb2-11" tabindex="-1"></a><span class="fu">print</span>(url_parts)</span></code></pre></div>
 </div>
 <div id="validation-and-utilities" class="section level3">
 <h3>Validation and Utilities</h3>
@@ -435,21 +437,24 @@ messages</li>
 <div id="web-scraping-with-international-domains" class="section level3">
 <h3>Web Scraping with International Domains</h3>
 <div class="sourceCode" id="cb4"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb4-1"><a href="#cb4-1" tabindex="-1"></a><span class="co"># Example: Processing international URLs for web scraping</span></span>
-<span id="cb4-2"><a href="#cb4-2" tabindex="-1"></a>international_urls <span class="ot">&lt;-</span> <span class="fu">c</span>(</span>
-<span id="cb4-3"><a href="#cb4-3" tabindex="-1"></a>  <span class="st">&quot;https://café.paris.fr/menu&quot;</span>,</span>
-<span id="cb4-4"><a href="#cb4-4" tabindex="-1"></a>  <span class="st">&quot;https://москва.рф/news&quot;</span>,</span>
-<span id="cb4-5"><a href="#cb4-5" tabindex="-1"></a>  <span class="st">&quot;https://北京.中国/info&quot;</span></span>
-<span id="cb4-6"><a href="#cb4-6" tabindex="-1"></a>)</span>
-<span id="cb4-7"><a href="#cb4-7" tabindex="-1"></a></span>
-<span id="cb4-8"><a href="#cb4-8" tabindex="-1"></a><span class="co"># Convert to ASCII for HTTP requests</span></span>
-<span id="cb4-9"><a href="#cb4-9" tabindex="-1"></a>ascii_urls <span class="ot">&lt;-</span> <span class="fu">url_encode</span>(international_urls)</span>
-<span id="cb4-10"><a href="#cb4-10" tabindex="-1"></a><span class="fu">print</span>(ascii_urls)</span>
-<span id="cb4-11"><a href="#cb4-11" tabindex="-1"></a></span>
-<span id="cb4-12"><a href="#cb4-12" tabindex="-1"></a><span class="co"># Process the data...</span></span>
-<span id="cb4-13"><a href="#cb4-13" tabindex="-1"></a></span>
-<span id="cb4-14"><a href="#cb4-14" tabindex="-1"></a><span class="co"># Convert back to Unicode for display</span></span>
-<span id="cb4-15"><a href="#cb4-15" tabindex="-1"></a>display_urls <span class="ot">&lt;-</span> <span class="fu">url_decode</span>(ascii_urls)</span>
-<span id="cb4-16"><a href="#cb4-16" tabindex="-1"></a><span class="fu">print</span>(display_urls)</span></code></pre></div>
+<span id="cb4-2"><a href="#cb4-2" tabindex="-1"></a>international_hosts <span class="ot">&lt;-</span> <span class="fu">c</span>(<span class="st">&quot;café.paris.fr&quot;</span>, <span class="st">&quot;москва.рф&quot;</span>, <span class="st">&quot;北京.中国&quot;</span>)</span>
+<span id="cb4-3"><a href="#cb4-3" tabindex="-1"></a>international_paths <span class="ot">&lt;-</span> <span class="fu">c</span>(<span class="st">&quot;/menu&quot;</span>, <span class="st">&quot;/news&quot;</span>, <span class="st">&quot;/info&quot;</span>)</span>
+<span id="cb4-4"><a href="#cb4-4" tabindex="-1"></a>international_urls <span class="ot">&lt;-</span> <span class="fu">paste0</span>(</span>
+<span id="cb4-5"><a href="#cb4-5" tabindex="-1"></a>  <span class="st">&quot;https&quot;</span>,</span>
+<span id="cb4-6"><a href="#cb4-6" tabindex="-1"></a>  <span class="st">&quot;://&quot;</span>,</span>
+<span id="cb4-7"><a href="#cb4-7" tabindex="-1"></a>  international_hosts,</span>
+<span id="cb4-8"><a href="#cb4-8" tabindex="-1"></a>  international_paths</span>
+<span id="cb4-9"><a href="#cb4-9" tabindex="-1"></a>)</span>
+<span id="cb4-10"><a href="#cb4-10" tabindex="-1"></a></span>
+<span id="cb4-11"><a href="#cb4-11" tabindex="-1"></a><span class="co"># Convert to ASCII for HTTP requests</span></span>
+<span id="cb4-12"><a href="#cb4-12" tabindex="-1"></a>ascii_urls <span class="ot">&lt;-</span> <span class="fu">url_encode</span>(international_urls)</span>
+<span id="cb4-13"><a href="#cb4-13" tabindex="-1"></a><span class="fu">print</span>(ascii_urls)</span>
+<span id="cb4-14"><a href="#cb4-14" tabindex="-1"></a></span>
+<span id="cb4-15"><a href="#cb4-15" tabindex="-1"></a><span class="co"># Process the data...</span></span>
+<span id="cb4-16"><a href="#cb4-16" tabindex="-1"></a></span>
+<span id="cb4-17"><a href="#cb4-17" tabindex="-1"></a><span class="co"># Convert back to Unicode for display</span></span>
+<span id="cb4-18"><a href="#cb4-18" tabindex="-1"></a>display_urls <span class="ot">&lt;-</span> <span class="fu">url_decode</span>(ascii_urls)</span>
+<span id="cb4-19"><a href="#cb4-19" tabindex="-1"></a><span class="fu">print</span>(display_urls)</span></code></pre></div>
 </div>
 <div id="bulk-domain-processing" class="section level3">
 <h3>Bulk Domain Processing</h3>
@@ -532,7 +537,7 @@ packages:</p>
 <span id="cb9-8"><a href="#cb9-8" tabindex="-1"></a><span class="co"># With dplyr</span></span>
 <span id="cb9-9"><a href="#cb9-9" tabindex="-1"></a><span class="fu">library</span>(dplyr)</span>
 <span id="cb9-10"><a href="#cb9-10" tabindex="-1"></a>urls_df <span class="ot">&lt;-</span> <span class="fu">data.frame</span>(</span>
-<span id="cb9-11"><a href="#cb9-11" tabindex="-1"></a>  <span class="at">unicode_url =</span> <span class="fu">c</span>(<span class="st">&quot;https://café.com&quot;</span>, <span class="st">&quot;https://москва.рф&quot;</span>)</span>
+<span id="cb9-11"><a href="#cb9-11" tabindex="-1"></a>  <span class="at">unicode_url =</span> <span class="fu">paste0</span>(<span class="st">&quot;https&quot;</span>, <span class="st">&quot;://&quot;</span>, <span class="fu">c</span>(<span class="st">&quot;café.com&quot;</span>, <span class="st">&quot;москва.рф&quot;</span>))</span>
 <span id="cb9-12"><a href="#cb9-12" tabindex="-1"></a>) <span class="sc">|&gt;</span></span>
 <span id="cb9-13"><a href="#cb9-13" tabindex="-1"></a>  <span class="fu">mutate</span>(</span>
 <span id="cb9-14"><a href="#cb9-14" tabindex="-1"></a>    <span class="at">ascii_url =</span> <span class="fu">url_encode</span>(unicode_url),</span>
@@ -555,6 +560,32 @@ RFC 3492 standards for punycode implementation. When
 <code>libidn2</code> is available at build time, <code>punycoder</code>
 uses it behind the same R-level API and falls back to the built-in
 implementation otherwise.</p>
+</div>
+<div id="see-also" class="section level2">
+<h2>See also</h2>
+<p><code>punycoder</code> is used as the Punycode and IDNA engine by two
+sibling packages:</p>
+<ul>
+<li><strong><a href="https://bart-turczynski.github.io/pslr/">pslr</a></strong> —
+Public Suffix List engine. Uses <code>punycoder</code> for host
+canonicalization before PSL matching. Reach for it when you need eTLD or
+registrable-domain queries.</li>
+<li><strong><a href="https://bart-turczynski.github.io/rurl/">rurl</a></strong> — Full
+URL parsing, normalization, cleaning, and joining toolkit. Builds on
+both <code>punycoder</code> and <code>pslr</code> to handle the complete
+URL processing pipeline.</li>
+</ul>
+</div>
+<div id="acknowledgments" class="section level2">
+<h2>Acknowledgments</h2>
+<p><code>punycoder</code> descends from the earlier R <a href="https://github.com/hrbrmstr/punycode">hrbrmstr/punycode</a>
+package and implements published standards directly: RFC 3492
+(Punycode), the IDNA2008 RFCs, Unicode UTS #46, and UAX #15
+normalization, validated against the Unicode Consortium’s IdnaTestV2
+conformance data. It is built on <code>Rcpp</code> with an optional GNU
+libidn2 backend.</p>
+<p>The full list of credits — prior art, dependencies, the standards
+this code implements, and the data sources it serves — is in <a href="https://github.com/bart-turczynski/punycoder/blob/main/ACKNOWLEDGMENTS.md"><code>ACKNOWLEDGMENTS.md</code></a>.</p>
 </div>
 </div>
 

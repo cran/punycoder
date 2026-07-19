@@ -2,7 +2,7 @@
 % Please edit documentation in R/punycoder.R
 \name{puny_decode}
 \alias{puny_decode}
-\title{Decode ASCII punycode to Unicode domains}
+\title{Decode ASCII Punycode to Unicode domain labels (low-level)}
 \usage{
 puny_decode(x, strict = getOption("punycoder.strict", TRUE))
 }
@@ -10,18 +10,26 @@ puny_decode(x, strict = getOption("punycoder.strict", TRUE))
 \item{x}{Character vector of ASCII punycode domains to decode}
 
 \item{strict}{Logical; whether to apply strict validation. Defaults to
-`getOption("punycoder.strict", TRUE)`.}
+\code{getOption("punycoder.strict", TRUE)}. In strict mode the raw codec
+enforces structural checks but not DNS host length limits.}
 }
 \value{
 A character vector the same length as \code{x}, with each element
-  containing the Unicode-decoded domain name. Elements corresponding to
-  \code{NA} inputs are \code{NA_character_}. In non-strict mode, domains
-  that fail decoding are also returned as \code{NA_character_}.
+containing the Unicode-decoded domain name. Elements corresponding to
+\code{NA} inputs are \code{NA_character_}. In non-strict mode, domains
+that fail decoding are also returned as \code{NA_character_}.
 }
 \description{
-Converts ASCII punycode domain names back to their Unicode representation.
-This is the reverse operation of puny_encode and is useful for displaying
-human-readable domain names.
+Converts ASCII Punycode (\verb{xn--}) domain names back to their Unicode
+representation. This is the inverse of \code{\link[=puny_encode]{puny_encode()}} and is the raw RFC
+3492 transform with A-label framing checks. DNS host length limits are
+intentionally not applied by this raw codec; use \code{\link[=validate_domain]{validate_domain()}} or
+\code{\link[=host_normalize]{host_normalize()}} when you need DNS host validation.
+}
+\details{
+Like \code{\link[=puny_encode]{puny_encode()}}, this is a \strong{low-level ASCII-Compatible Encoding
+helper, not an IDNA normalization API}: it does not apply UTS #46 mapping
+or NFC. For IDNA/UTS-46 host normalization, see \code{\link[=host_normalize]{host_normalize()}}.
 }
 \examples{
 \donttest{
@@ -36,5 +44,6 @@ puny_decode(ascii_domains)
 }
 \seealso{
 \code{\link{puny_encode}} for the reverse operation,
-  \code{\link{url_decode}} for full URL decoding.
+\code{\link{host_normalize}} for IDNA/UTS-46 host normalization,
+\code{\link{url_decode}} for full URL decoding.
 }

@@ -15,7 +15,7 @@ test_that("is_punycode handles vectorized input", {
   result <- is_punycode(domains)
 
   expect_length(result, 4)
-  expect_equal(result, c(TRUE, FALSE, TRUE, FALSE))
+  expect_identical(result, c(TRUE, FALSE, TRUE, FALSE))
 })
 
 test_that("is_punycode validates input", {
@@ -49,7 +49,7 @@ test_that("validate_domain returns proper structure", {
 
   expect_type(result, "list")
   expect_s3_class(result, "punycoder_validation")
-  expect_named(result, c("domains", "valid", "errors"))
+  expect_named(result, c("domains", "valid", "errors", "error_codes"))
 })
 
 test_that("validate_domain handles valid domains", {
@@ -69,13 +69,33 @@ test_that("validate_domain handles invalid domains", {
 
   expect_false(result$valid[1])
   expect_length(result$errors[[1]], 1)
-  expect_equal(result$errors[[1]][1], "Domain is NA")
+  expect_identical(result$errors[[1]][1], "Domain is NA")
+  expect_identical(result$error_codes[[1]], "domain_na")
 
   invalid <- validate_domain("invalid..domain")
   expect_false(invalid$valid[1])
   expect_true(any(
-    grepl("empty label", invalid$errors[[1]], ignore.case = TRUE)
+    grepl("empty label", invalid$errors[[1]], fixed = TRUE)
   ))
+  expect_identical(invalid$error_codes[[1]], "domain_empty_label")
+})
+
+test_that("validate_domain exposes machine-readable error codes", {
+  result <- validate_domain(c(
+    "example.com",
+    "-bad.com",
+    "bad_label.com",
+    "xn--z.com"
+  ))
+
+  expect_true(result$valid[1])
+  expect_identical(result$errors[[1]], character())
+  expect_identical(result$error_codes[[1]], character())
+
+  expect_identical(result$error_codes[[2]], "domain_label_hyphen")
+  expect_identical(result$error_codes[[3]], "ascii_domain_characters")
+  expect_identical(result$error_codes[[4]], "truncated_punycode_input")
+  expect_true(all(lengths(result$errors[-1]) == 1L))
 })
 
 test_that("validate_domain strict parameter works", {
@@ -90,59 +110,167 @@ test_that("validate_domain validates input", {
 test_that("print method for validation results works", {
   result <- validate_domain(c("example.com", NA_character_))
 
-  # Should not error when printing
-  expect_no_error(print(result))
-
-  # Capture output to verify it contains expected elements
-  output <- capture.output(print(result))
-  expect_true(any(grepl("Punycoder Domain Validation Results", output)))
-  expect_true(any(grepl("example.com", output)))
+  # Capture output to verify it contains expected elements. The assignment also
+  # verifies that printing does not error.
+  output <- capture.output(returned <- print(result))
+  expect_identical(returned, result)
+  expect_true(any(grepl(
+    "Punycoder Domain Validation Results", output, fixed = TRUE
+  )))
+  expect_true(any(grepl("example.com", output, fixed = TRUE)))
+  expect_true(any(grepl("Domain is NA", output, fixed = TRUE)))
+  expect_true(any(grepl("Valid:  TRUE", output, fixed = TRUE)))
+  expect_true(any(grepl("Valid:  FALSE", output, fixed = TRUE)))
 })
 
 test_that("validation summaries include valid and invalid messages", {
   result <- validate_domain(c("example.com", "invalid..domain"))
   summary <- punycoder:::get_validation_summary(result)
 
-  expect_equal(summary[[1]], "Valid")
-  expect_true(grepl("empty label", summary[[2]], ignore.case = TRUE))
+  expect_identical(summary[[1]], "Valid")
+  expect_true(grepl(
+    "empty label", summary[[2]], fixed = TRUE
+  ))
   expect_error(
     punycoder:::get_validation_summary(list(errors = list(character()))),
     "punycoder_validation"
   )
 })
 
-test_that("strict domain validation catches length and character constraints", {
-  long_label <- paste(rep("a", 64), collapse = "")
-  overlong_domain <- paste0(long_label, ".com")
-  expect_error(puny_encode(overlong_domain, strict = TRUE), "label too long")
-  expect_false(is.na(puny_encode(overlong_domain, strict = FALSE)))
+test_that("validation summaries collapse multiple errors", {
+  result <- structure(
+    list(
+      domains = "example.com",
+      valid = FALSE,
+      errors = list(c("first problem", "second problem")),
+      error_codes = list(c("first", "second"))
+    ),
+    class = c("punycoder_validation", "list")
+  )
 
-  huge_domain <- paste0(paste(rep("a", 254), collapse = ""), ".com")
-  expect_error(puny_encode(huge_domain, strict = TRUE), "too long")
-  expect_false(is.na(puny_encode(huge_domain, strict = FALSE)))
+  expect_identical(
+    punycoder:::get_validation_summary(result),
+    "first problem; second problem"
+  )
+})
+
+test_that("validate_domain exposes lower-level domain error messages", {
+  long_unicode_label <- strrep("é", 70)
+  label_over_internal_cap <- strrep("a", 1025)
+
+  result <- validate_domain(c(
+    "",
+    "a..b",
+    "-bad.com",
+    "bad_label.com",
+    long_unicode_label,
+    label_over_internal_cap,
+    "xn--z"
+  ))
+
+  expect_identical(result$error_codes[[1]], "domain_empty")
+  expect_match(result$errors[[1]], "cannot be empty")
+
+  expect_identical(result$error_codes[[2]], "domain_empty_label")
+  expect_match(result$errors[[2]], "empty label")
+
+  expect_identical(result$error_codes[[3]], "domain_label_hyphen")
+  expect_match(result$errors[[3]], "start or end with hyphen")
+
+  expect_identical(result$error_codes[[4]], "ascii_domain_characters")
+  expect_match(result$errors[[4]], "letters, numbers and hyphens")
+
+  expect_identical(result$error_codes[[5]], "encoded_label_too_long")
+  expect_match(result$errors[[5]], "exceeds 63 characters")
+
+  expect_identical(result$error_codes[[6]], "domain_too_long")
+  expect_match(result$errors[[6]], "max 253 characters")
+
+  expect_identical(result$error_codes[[7]], "truncated_punycode_input")
+  expect_match(result$errors[[7]], "Truncated punycode input")
+})
+
+test_that("strict domain validation catches length and character constraints", {
+  long_label <- strrep("a", 64)
+  overlong_domain <- paste0(long_label, ".com")
+  expect_identical(puny_encode(overlong_domain, strict = TRUE), overlong_domain)
+  expect_false(validate_domain(overlong_domain, strict = TRUE)$valid)
+
+  huge_domain <- paste0(strrep("a", 254), ".com")
+  expect_identical(puny_encode(huge_domain, strict = TRUE), huge_domain)
+  expect_false(validate_domain(huge_domain, strict = TRUE)$valid)
 
   expect_error(puny_encode("bad_label.com", strict = TRUE), "hyphens")
   expect_false(is.na(puny_encode("bad_label.com", strict = FALSE)))
   expect_error(puny_encode(".", strict = TRUE), "cannot be empty")
 })
 
+test_that("validate_domain surfaces backend-invariant codec error codes", {
+  # validate_domain() runs the full validation pipeline and reports the stable
+  # ErrorCode name per element. These inputs fail in code paths that both label
+  # backends share (UTF-8 decoding in the encoder, and the domain-layer length
+  # cap), so the exact code is identical whether or not libidn2 is present.
+  code <- function(x, strict = TRUE) {
+    validate_domain(x, strict = strict)$error_codes[[1]]
+  }
+
+  # Ill-formed UTF-8 in a would-be U-label: both backends validate UTF-8 via the
+  # same utf8_to_codepoints() before handing off to the codec.
+  expect_identical(code(raw_utf8(0xFF)), "invalid_utf8_sequence")
+  expect_identical(code(raw_utf8(0xC3)), "truncated_utf8_sequence")
+  expect_identical(code(raw_utf8(0xC3, 0x61)), "invalid_utf8_continuation")
+  expect_identical(code(raw_utf8(0xC0, 0x80)), "overlong_utf8_sequence")
+
+  # Internal label-length DoS cap is a domain-layer guard, backend-independent
+  # (strict = FALSE skips the DNS-length guard that would otherwise mask it).
+  expect_identical(
+    code(strrep("a", 2000), strict = FALSE), "label_length_limit"
+  )
+})
+
+test_that("validate_domain reports a decode error for malformed A-labels", {
+  # Malformed xn-- labels are rejected by both backends, but the *specific*
+  # ErrorCode is deliberately not part of the cross-backend contract: libidn2
+  # and the in-tree fallback word rejections differently (see test-backends.R).
+  # Assert the decision (rejected, with a code from the punycode-decode family)
+  # rather than a single value that would differ on libidn2-less platforms.
+  decode_error_codes <- c(
+    "invalid_punycode_label", "invalid_punycode_digit", "punycode_overflow",
+    "decoded_code_point_out_of_range", "invalid_utf8_code_point",
+    "truncated_punycode_input"
+  )
+  check_rejected <- function(x, strict = TRUE) {
+    res <- validate_domain(x, strict = strict)
+    expect_false(res$valid[[1]])
+    expect_length(res$error_codes[[1]], 1L)
+    expect_true(res$error_codes[[1]] %in% decode_error_codes)
+  }
+
+  check_rejected("xn--CAF-DMA")                          # non-canonical A-label
+  check_rejected(paste0("xn--", strrep("z", 40)))        # out-of-range decode
+  check_rejected("xn--a*b", strict = FALSE)              # invalid digit
+  check_rejected(paste0("xn--", strrep("9", 20)), strict = FALSE) # overflow
+  check_rejected(paste0("xn--", strrep("z", 30)), strict = FALSE) # out of range
+})
+
 test_that("domain at 253-char boundary", {
   # 63 + 1 + 63 + 1 + 63 + 1 + 59 = 251; add 2 more to hit 253
   domain_253 <- paste0(
-    paste(rep("a", 63), collapse = ""), ".",
-    paste(rep("b", 63), collapse = ""), ".",
-    paste(rep("c", 63), collapse = ""), ".",
-    paste(rep("d", 61), collapse = "")
+    strrep("a", 63), ".",
+    strrep("b", 63), ".",
+    strrep("c", 63), ".",
+    strrep("d", 61)
   )
   stopifnot(nchar(domain_253) == 253)
   expect_no_error(puny_encode(domain_253, strict = TRUE))
 
   domain_254 <- paste0(
-    paste(rep("a", 63), collapse = ""), ".",
-    paste(rep("b", 63), collapse = ""), ".",
-    paste(rep("c", 63), collapse = ""), ".",
-    paste(rep("d", 62), collapse = "")
+    strrep("a", 63), ".",
+    strrep("b", 63), ".",
+    strrep("c", 63), ".",
+    strrep("d", 62)
   )
   stopifnot(nchar(domain_254) == 254)
-  expect_error(puny_encode(domain_254, strict = TRUE), "too long")
+  expect_identical(puny_encode(domain_254, strict = TRUE), domain_254)
+  expect_false(validate_domain(domain_254, strict = TRUE)$valid)
 })

@@ -2,27 +2,46 @@
 % Please edit documentation in R/url-utils.R
 \name{url_encode}
 \alias{url_encode}
-\title{Encode URLs with Unicode domains to ASCII}
+\title{Best-effort host rewriting in a URL-shaped string (Unicode host to ASCII)}
 \usage{
 url_encode(url, strict = getOption("punycoder.strict", TRUE))
 }
 \arguments{
-\item{url}{Character vector of URLs with potential Unicode domains}
+\item{url}{Character vector of URL-shaped strings with potential Unicode
+hosts}
 
 \item{strict}{Logical; whether to apply strict validation. Defaults to
-`getOption("punycoder.strict", TRUE)`.}
+\code{getOption("punycoder.strict", TRUE)}.}
 }
 \value{
 A character vector the same length as \code{url}, with each element
-  containing the URL with its host portion ASCII-encoded. Only the domain
-  component is transformed; scheme, path, query, and fragment are preserved.
-  Elements corresponding to \code{NA} inputs are \code{NA_character_}.
+containing the URL with its host portion ASCII-encoded. Only the domain
+component is transformed; scheme, path, query, and fragment are preserved.
+Elements corresponding to \code{NA} inputs are \code{NA_character_}.
 }
 \description{
-Converts URLs containing Unicode domain names to their ASCII representation
-while preserving the rest of the URL structure. This function is essential
-for preparing URLs for systems that require ASCII-only domain names.
+Locates the host portion of a URL-shaped string with a hand-rolled
+splitter, ASCII-encodes that host, and substitutes it back, leaving the
+rest of the string untouched.
 }
+\details{
+This is \strong{best-effort host extraction and rewriting, not URL parsing or
+canonicalization.} It is deliberately \emph{not} RFC 3986 / WHATWG URL
+conformant. Non-goals (handled upstack, e.g. by \code{rurl}): percent
+encoding/decoding, scheme validation, port/path/query semantics, full
+IPv6 (including zone IDs / RFC 6874), and URL serialization. Pass only the
+host to \code{\link[=host_normalize]{host_normalize()}} / \code{\link[=puny_encode]{puny_encode()}} when you control the parse;
+use this helper only for quick host rewriting in an already-trusted
+URL-shaped string.
+}
+\section{Deprecated}{
+
+This function is deprecated and slated for removal in a future release. For
+URL parsing and canonicalization use a dedicated URL package (e.g. \code{rurl});
+for host-only encoding pass the host alone to \code{\link[=host_normalize]{host_normalize()}} or
+\code{\link[=puny_encode]{puny_encode()}}.
+}
+
 \examples{
 \donttest{
 # Basic URL encoding
@@ -41,6 +60,7 @@ url_encode(urls)
 }
 \seealso{
 \code{\link{url_decode}} for the reverse operation,
-  \code{\link{puny_encode}} for domain-only encoding,
-  \code{\link{parse_url}} for URL component extraction.
+\code{\link{puny_encode}} for domain-only encoding,
+\code{\link{parse_url}} for URL component extraction.
 }
+\keyword{internal}

@@ -4,41 +4,74 @@
 \alias{host_normalize}
 \title{Normalize hosts to canonical comparison form}
 \usage{
-host_normalize(x, strict = TRUE)
+host_normalize(
+  x,
+  check_hyphens = TRUE,
+  use_std3 = TRUE,
+  verify_dns_length = TRUE
+)
 }
 \arguments{
-\item{x}{Character vector of hostnames. `NA` elements pass through as `NA`
+\item{x}{Character vector of hostnames. \code{NA} elements pass through as \code{NA}
 (missing, not invalid). Names are preserved.}
 
-\item{strict}{Logical scalar. `TRUE` (the default) applies the full profile.
-`strict = FALSE` is reserved for a future documented relaxed variant and
-currently behaves identically to `TRUE`. This function never reads the
-`punycoder.strict` option.}
+\item{check_hyphens}{Logical scalar. When \code{TRUE} (the default) the UTS #46
+\code{CheckHyphens} rule rejects \code{"--"} in the 3rd/4th positions and leading or
+trailing hyphens. \code{FALSE} drops that check.}
+
+\item{use_std3}{Logical scalar. When \code{TRUE} (the default) \code{UseSTD3ASCIIRules}
+restricts ASCII to letters, digits, and hyphen. \code{FALSE} admits other ASCII
+(e.g. \code{"_"}) that the pinned table marks STD3-disallowed-but-valid.}
+
+\item{verify_dns_length}{Logical scalar. When \code{TRUE} (the default) each
+A-label must be 1-63 octets and the whole host <= 253. \code{FALSE} drops the
+length limits (empty labels are still rejected as structural errors).}
 }
 \value{
-A character vector the same length as `x`. Each element is the
-  canonical lowercase ASCII A-label host, or `NA_character_` when the input
-  is `NA` or invalid under the profile.
+A character vector the same length as \code{x}. Each element is the
+canonical lowercase ASCII A-label host, or \code{NA_character_} when the input
+is \code{NA} or invalid under the profile.
 }
 \description{
 Converts DNS hostnames to their canonical comparison form following the
 ratified canonical-host normalization contract: Unicode NFC, case mapping,
 UTS-46 label mapping and validation (non-transitional, with
-`UseSTD3ASCIIRules`, `CheckHyphens`, `CheckBidi`, and `CheckJoiners`),
+\code{UseSTD3ASCIIRules}, \code{CheckHyphens}, \code{CheckBidi}, and \code{CheckJoiners}),
 conversion to lowercase ASCII A-labels, and DNS length verification, while
 preserving whether the input carried a single terminal root dot.
 }
 \details{
-Unlike [puny_encode()], invalid input is reported by returning
-`NA_character_` (never by aborting), so a caller can layer its own policy.
+Unlike \code{\link[=puny_encode]{puny_encode()}}, invalid input is reported by returning
+\code{NA_character_} (never by aborting), so a caller can layer its own policy.
 The profile is fixed at one pinned Unicode version per release; see
-[normalization_profile_info()] for the machine-readable identity.
+\code{\link[=normalization_profile_info]{normalization_profile_info()}} for the machine-readable identity.
+
+This is a \strong{UTS #46 profile, not IDNA2008 / RFC 5891 conformance.} UTS #46
+is compatibility processing and deliberately differs from IDNA2008 — it
+accepts labels IDNA2008 would reject (e.g. a label whose first character is
+the symbol U+2615 HOT BEVERAGE becomes \code{"xn--53h.example"}). The pipeline
+draws on RFC 3492 (the Punycode
+transform), NFC per UAX #15, the RFC 5892 ContextJ rules via \code{CheckJoiners}
+(ZWJ/ZWNJ only — full RFC 5892 CONTEXTO is \strong{not} checked), the RFC 5893
+Bidi rule via \code{CheckBidi}, and STD 3 (RFC 952 + RFC 1123) host-name rules via
+\code{UseSTD3ASCIIRules}. IDNA2003 / Nameprep (RFC 3490/3491/3454) is not used.
+
+The default applies the full strict UTS #46 profile
+(\code{uts46-nontransitional-std3-v1}). The \code{check_hyphens}, \code{use_std3}, and
+\code{verify_dns_length} arguments are UTS #46 processing flags that can each be
+relaxed independently; pass the \emph{same} values to
+\code{\link[=normalization_profile_info]{normalization_profile_info()}} to obtain the identity of the resulting
+profile. These are standard UTS #46 parameters, \strong{not} a browser mode:
+\code{CheckBidi} and \code{CheckJoiners} always apply and are never knobs, and full
+WHATWG host policy (where \code{beStrict = false} flips exactly these three) lives
+upstack in \code{rurl}, not here.
 }
 \examples{
 host_normalize(c("Example.COM", "münchen.de", "example.com."))
 host_normalize("a_b.com") # NA: STD3 rejects "_"
+host_normalize("a_b.com", use_std3 = FALSE) # "a_b.com"
 }
 \seealso{
-[normalization_profile_info()] for the profile identity,
-  [puny_encode()] for the lower-level RFC 3492 transform.
+\code{\link[=normalization_profile_info]{normalization_profile_info()}} for the profile identity,
+\code{\link[=puny_encode]{puny_encode()}} for the lower-level RFC 3492 transform.
 }

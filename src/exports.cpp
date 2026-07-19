@@ -76,14 +76,14 @@ std::string safe_backend_mode(
 
 // [[Rcpp::export]]
 Rcpp::CharacterVector puny_encode_cpp(Rcpp::CharacterVector domains, bool strict = true) {
-    punycoder::PunycodeService service(strict);
+    punycoder::PunycodeService service(strict, false);
     return transform_strings(
         domains,
         strict,
         "Error encoding domain",
         [&](const std::string& domain) {
             if (punycoder::looks_like_url_input(domain)) {
-                punycoder::throw_error(punycoder::ErrorCode::ascii_domain_characters);
+                punycoder::throw_error(punycoder::ErrorCode::looks_like_url);
             }
             return service.encode_domain(domain);
         }
@@ -92,14 +92,14 @@ Rcpp::CharacterVector puny_encode_cpp(Rcpp::CharacterVector domains, bool strict
 
 // [[Rcpp::export]]
 Rcpp::CharacterVector puny_decode_cpp(Rcpp::CharacterVector domains, bool strict = true) {
-    punycoder::PunycodeService service(strict);
+    punycoder::PunycodeService service(strict, false);
     return transform_strings(
         domains,
         strict,
         "Error decoding domain",
         [&](const std::string& domain) {
             if (punycoder::looks_like_url_input(domain)) {
-                punycoder::throw_error(punycoder::ErrorCode::ascii_domain_characters);
+                punycoder::throw_error(punycoder::ErrorCode::looks_like_url);
             }
             return service.decode_domain(domain);
         }
@@ -210,12 +210,14 @@ Rcpp::List validate_domain_cpp(Rcpp::CharacterVector domains, bool strict = true
     R_xlen_t n = domains.size();
     Rcpp::LogicalVector valid(n);
     Rcpp::List errors(n);
+    Rcpp::List error_codes(n);
     punycoder::LabelBackend backend = punycoder::select_label_backend();
 
     for (R_xlen_t i = 0; i < n; ++i) {
         if (Rcpp::CharacterVector::is_na(domains[i])) {
             valid[i] = false;
             errors[i] = Rcpp::CharacterVector::create("Domain is NA");
+            error_codes[i] = Rcpp::CharacterVector::create("domain_na");
             continue;
         }
 
@@ -226,20 +228,32 @@ Rcpp::List validate_domain_cpp(Rcpp::CharacterVector domains, bool strict = true
                 domain,
                 backend,
                 strict,
+                true,
                 punycoder::DomainTransform::none
             );
             valid[i] = true;
             errors[i] = Rcpp::CharacterVector::create();
-        } catch (const std::exception& e) {
+            error_codes[i] = Rcpp::CharacterVector::create();
+        } catch (const punycoder::PunycoderError& e) {
             valid[i] = false;
             errors[i] = Rcpp::CharacterVector::create(e.what());
-        }
+            error_codes[i] = Rcpp::CharacterVector::create(
+                punycoder::error_code_name(e.code())
+            );
+        } catch (const std::exception& e) {  // # nocov start
+            // Defensive: validate_and_parse_domain only throws PunycoderError;
+            // this arm catches non-domain exceptions (e.g. std::bad_alloc).
+            valid[i] = false;
+            errors[i] = Rcpp::CharacterVector::create(e.what());
+            error_codes[i] = Rcpp::CharacterVector::create("unknown_error");
+        }  // # nocov end
     }
 
     return Rcpp::List::create(
         Rcpp::Named("domains") = domains,
         Rcpp::Named("valid") = valid,
-        Rcpp::Named("errors") = errors
+        Rcpp::Named("errors") = errors,
+        Rcpp::Named("error_codes") = error_codes
     );
 }
 
@@ -262,14 +276,17 @@ Rcpp::List compare_backends_cpp(
     Rcpp::CharacterVector fallback(input.size());
     Rcpp::CharacterVector libidn2(input.size());
     bool has_libidn2 = punycoder::libidn2_backend_available();
+    bool verify_dns_length = mode == "encode_url" || mode == "decode_url";
 
     punycoder::PunycodeService fallback_service(
         strict,
-        punycoder::select_label_backend(punycoder::BackendPreference::fallback)
+        punycoder::select_label_backend(punycoder::BackendPreference::fallback),
+        verify_dns_length
     );
     punycoder::PunycodeService libidn2_service(
         strict,
-        punycoder::select_label_backend(punycoder::BackendPreference::libidn2)
+        punycoder::select_label_backend(punycoder::BackendPreference::libidn2),
+        verify_dns_length
     );
 
     for (R_xlen_t i = 0; i < input.size(); ++i) {
@@ -284,7 +301,7 @@ Rcpp::List compare_backends_cpp(
         if (has_libidn2) {
             libidn2[i] = safe_backend_mode(libidn2_service, mode, value);
         } else {
-            libidn2[i] = NA_STRING;
+            libidn2[i] = NA_STRING;  // # nocov (only on builds without libidn2, e.g. Windows)
         }
     }
 
@@ -295,15 +312,23 @@ Rcpp::List compare_backends_cpp(
     );
 }
 
-// Canonical-host normalization (docs/normalization-contract.md). NA inputs pass
+// Canonical-host normalization (dev/normalization-contract.md). NA inputs pass
 // through as NA (missing); invalid inputs return NA (the contract's
 // NA-on-invalid signal). The result is always lowercase ASCII, so no element
 // encoding needs to be set. Names are preserved.
 //
 // [[Rcpp::export]]
-Rcpp::CharacterVector host_normalize_cpp(Rcpp::CharacterVector x, bool strict = true) {
+Rcpp::CharacterVector host_normalize_cpp(Rcpp::CharacterVector x,
+                                         bool check_hyphens = true,
+                                         bool use_std3 = true,
+                                         bool verify_dns_length = true) {
     R_xlen_t n = x.size();
     Rcpp::CharacterVector out(n);
+
+    punycoder::NormalizeOptions opts;
+    opts.check_hyphens = check_hyphens;
+    opts.use_std3 = use_std3;
+    opts.verify_dns_length = verify_dns_length;
 
     for (R_xlen_t i = 0; i < n; ++i) {
         if (Rcpp::CharacterVector::is_na(x[i])) {
@@ -312,7 +337,7 @@ Rcpp::CharacterVector host_normalize_cpp(Rcpp::CharacterVector x, bool strict = 
         }
 
         const punycoder::HostNormalizeResult result =
-            punycoder::host_normalize_one(Rcpp::as<std::string>(x[i]), strict);
+            punycoder::host_normalize_one(Rcpp::as<std::string>(x[i]), opts);
         out[i] = result.valid ? Rcpp::String(result.value) : NA_STRING;
     }
 

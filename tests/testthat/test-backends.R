@@ -33,8 +33,8 @@ backend_decisions <- function(input, mode, strict = TRUE) {
 expect_backend_parity <- function(input, mode, strict = TRUE) {
   d <- backend_decisions(input, mode, strict)
   skip_if(!d$available, "libidn2 backend is not available")
-  expect_equal(d$fb_reject, d$li_reject) # identical accept/reject decision
-  expect_equal(d$fb_out, d$li_out) # identical canonical output (accepted)
+  expect_identical(d$fb_reject, d$li_reject) # identical accept/reject decision
+  expect_identical(d$fb_out, d$li_out) # identical canonical output (accepted)
   invisible(d)
 }
 
@@ -78,7 +78,8 @@ roundtrip_domains <- c(
 
 # Inputs both backends must reject, spanning the validation pipeline: empty
 # name, STD3-illegal char, empty label, leading dot, hyphen placement,
-# whitespace, malformed ACE payload, and an over-long (>63 octet) label.
+# whitespace, and malformed ACE payload. DNS length validation is covered by
+# validate_domain()/URL host tests, not the raw punycode codec.
 parity_reject_domains <- c(
   "",
   "a_b.com",
@@ -86,8 +87,7 @@ parity_reject_domains <- c(
   ".com",
   "-bad-.com",
   "exa mple.com",
-  "xn--zzz999.com",
-  paste0(strrep("a", 64), ".com")
+  "xn--zzz999.com"
 )
 
 # --- Backend metadata -----------------------------------------------------
@@ -101,6 +101,31 @@ test_that("backend info exposes availability and selected backend", {
   expect_length(info$has_libidn2, 1)
 })
 
+test_that("backend comparison propagates NA inputs as NA", {
+  result <- punycoder:::.compare_backends(
+    c("example.com", NA_character_), "encode_domain"
+  )
+
+  expect_false(is.na(result$fallback[[1]]))
+  expect_true(is.na(result$fallback[[2]]))
+  if (isTRUE(result$available)) {
+    expect_true(is.na(result$libidn2[[2]]))
+  }
+})
+
+test_that("backend comparison reports unsupported modes as errors", {
+  result <- punycoder:::.compare_backends("example.com", "bogus_mode")
+
+  expect_true(startsWith(result$fallback[[1]], "__ERROR__: "))
+  expect_match(result$fallback[[1]], "Unknown backend comparison mode")
+  if (isTRUE(result$available)) {
+    expect_true(startsWith(result$libidn2[[1]], "__ERROR__: "))
+    expect_match(result$libidn2[[1]], "Unknown backend comparison mode")
+  } else {
+    expect_true(is.na(result$libidn2[[1]]))
+  }
+})
+
 # --- Cross-backend parity (requires libidn2) ------------------------------
 
 test_that("fallback and libidn2 agree on RFC 3492 vectors", {
@@ -109,10 +134,10 @@ test_that("fallback and libidn2 agree on RFC 3492 vectors", {
     stringsAsFactors = FALSE
   )
 
-  # RFC vectors include generic strings, not only DNS-valid labels, so strict
-  # validation is relaxed for this fixture.
-  expect_backend_parity(vectors$unicode, "encode_domain", strict = FALSE)
-  expect_backend_parity(vectors$ascii, "decode_domain", strict = FALSE)
+  # RFC vectors include generic strings, not only DNS-valid labels. The raw
+  # codec's strict mode keeps structural checks without DNS length caps.
+  expect_backend_parity(vectors$unicode, "encode_domain", strict = TRUE)
+  expect_backend_parity(vectors$ascii, "decode_domain", strict = TRUE)
 })
 
 test_that("fallback and libidn2 agree on multi-script PSL-shaped domains", {
@@ -125,7 +150,7 @@ test_that("fallback and libidn2 agree to reject malformed domains", {
   # payload), which is exactly why parity is asserted on the decision, not text.
   d <- backend_decisions(parity_reject_domains, "encode_domain")
   skip_if(!d$available, "libidn2 backend is not available")
-  expect_equal(d$fb_reject, d$li_reject)
+  expect_identical(d$fb_reject, d$li_reject)
   expect_true(all(d$fb_reject))
 })
 
@@ -160,8 +185,8 @@ test_that("fallback backend rejects malformed domains on its own", {
 
 test_that("fallback backend round-trips valid IDN domains on its own", {
   enc <- backend_decisions(roundtrip_domains, "encode_domain")$fb_out
-  expect_false(any(is.na(enc))) # all accepted
+  expect_false(anyNA(enc)) # all accepted
 
   dec <- backend_decisions(enc, "decode_domain")$fb_out
-  expect_equal(dec, roundtrip_domains)
+  expect_identical(dec, roundtrip_domains)
 })

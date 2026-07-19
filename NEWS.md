@@ -1,3 +1,55 @@
+# punycoder 1.2.1
+
+Maintenance release over the 1.2.0 development tag; the public API is unchanged.
+
+## Internal
+
+* Added OSV and OSS Index dependency vulnerability audits, a `goodpractice`-aligned `.lintr`, pre-commit and community-health configuration, and Dependabot for GitHub Actions; no package code or user-facing change (#57, #58, #61, #63).
+
+# punycoder 1.2.0
+
+## Breaking changes
+
+* `host_normalize()` no longer takes a `strict` argument. It was inert (always
+  applied the full profile) and reserved for exactly this relaxed variant, which
+  the three explicit flags below now provide.
+
+## New features
+
+* `host_normalize()` gains three UTS #46 processing flags --- `check_hyphens`,
+  `use_std3`, and `verify_dns_length` --- each defaulting to `TRUE` (the strict
+  `uts46-nontransitional-std3-v1` profile) and each independently relaxable.
+  These are standard UTS #46 parameters, not a browser mode: `CheckBidi` and
+  `CheckJoiners` always apply, and full WHATWG host policy lives upstack. Pass
+  the same flag values to `normalization_profile_info()` for the matching
+  profile identity.
+
+## Deprecated
+
+* `url_encode()`, `url_decode()`, and `parse_url()` are deprecated and now emit
+  a `.Deprecated()` warning on use. They remain exported and fully functional
+  for this release and are scheduled for removal in the next one. These were
+  always best-effort host extraction/rewriting, not RFC 3986 / WHATWG URL
+  parsing; use the `rurl` package for URL parsing and canonicalization, or pass
+  the host alone to `host_normalize()` / `puny_encode()` / `puny_decode()` for
+  host-only needs.
+
+## Minor improvements
+
+* `puny_encode()` / `puny_decode()` now reject URL-shaped input with a dedicated,
+  actionable error (`looks_like_url`) pointing at `rurl::get_host()`, instead of
+  the generic "ASCII domain labels may contain only letters, numbers and
+  hyphens" message. Behavior is unchanged (URLs were always rejected; only the
+  message is clearer).
+
+## Internal
+
+* `host_normalize()` is now verified against the official Unicode UTS #46
+  conformance corpus (`IdnaTestV2.txt`, Unicode 16.0.0). The suite confirms
+  full non-transitional ToASCII conformance, with one documented profile
+  divergence: the trailing FQDN root dot is permitted (strict
+  `VerifyDnsLength` would reject the empty root label).
+
 # punycoder 1.1.0
 
 ## New Features

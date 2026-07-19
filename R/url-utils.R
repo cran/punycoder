@@ -1,12 +1,50 @@
-#' Encode URLs with Unicode domains to ASCII
+# Emit the standard .Deprecated() warning for the URL surface. These functions
+# (url_encode/url_decode/parse_url) are wound down in favor of `rurl` for URL
+# parsing/canonicalization and host_normalize()/puny_encode()/puny_decode() for
+# host-only needs; removal is scheduled for the next release.
+.deprecate_url_surface <- function(old) {
+  hint <- switch(
+    old,
+    url_decode = "host_normalize() / puny_decode() for host-only decoding",
+    "host_normalize() / puny_encode() for host-only encoding"
+  )
+  .Deprecated(
+    msg = sprintf(
+      paste0(
+        "'%s()' is deprecated and will be removed in a future release.\n",
+        "Use the 'rurl' package for URL parsing/canonicalization, or %s."
+      ),
+      old,
+      hint
+    ),
+    old = old
+  )
+}
+
+#' Best-effort host rewriting in a URL-shaped string (Unicode host to ASCII)
 #'
-#' Converts URLs containing Unicode domain names to their ASCII representation
-#' while preserving the rest of the URL structure. This function is essential
-#' for preparing URLs for systems that require ASCII-only domain names.
+#' Locates the host portion of a URL-shaped string with a hand-rolled
+#' splitter, ASCII-encodes that host, and substitutes it back, leaving the
+#' rest of the string untouched.
 #'
-#' @param url Character vector of URLs with potential Unicode domains
-#' @param strict Logical; whether to apply strict validation. Defaults to
-#'   `getOption("punycoder.strict", TRUE)`.
+#' This is **best-effort host extraction and rewriting, not URL parsing or
+#' canonicalization.** It is deliberately *not* RFC 3986 / WHATWG URL
+#' conformant. Non-goals (handled upstack, e.g. by `rurl`): percent
+#' encoding/decoding, scheme validation, port/path/query semantics, full
+#' IPv6 (including zone IDs / RFC 6874), and URL serialization. Pass only the
+#' host to [host_normalize()] / [puny_encode()] when you control the parse;
+#' use this helper only for quick host rewriting in an already-trusted
+#' URL-shaped string.
+#'
+#' @section Deprecated:
+#' This function is deprecated and slated for removal in a future release. For
+#' URL parsing and canonicalization use a dedicated URL package (e.g. `rurl`);
+#' for host-only encoding pass the host alone to [host_normalize()] or
+#' [puny_encode()].
+#'
+#' @param url Character vector of URL-shaped strings with potential Unicode
+#'   hosts
+#' @inheritParams validate_domain
 #' @return A character vector the same length as \code{url}, with each element
 #'   containing the URL with its host portion ASCII-encoded. Only the domain
 #'   component is transformed; scheme, path, query, and fragment are preserved.
@@ -29,20 +67,31 @@
 #' )
 #' url_encode(urls)
 #' }
+#' @keywords internal
 #' @export
 url_encode <- function(url, strict = getOption("punycoder.strict", TRUE)) {
+  .deprecate_url_surface("url_encode")
   .call_with_validation(url, strict, url_encode_cpp, "url")
 }
 
-#' Decode URLs with ASCII punycode domains to Unicode
+#' Best-effort host rewriting in a URL-shaped string (ASCII punycode to Unicode)
 #'
-#' Converts URLs containing ASCII punycode domain names back to their Unicode
-#' representation for display purposes. This function makes internationalized
-#' URLs human-readable.
+#' Locates the host portion of a URL-shaped string with a hand-rolled
+#' splitter, decodes that host from ASCII punycode to Unicode, and
+#' substitutes it back, leaving the rest of the string untouched.
 #'
-#' @param url Character vector of URLs with ASCII punycode domains
-#' @param strict Logical; whether to apply strict validation. Defaults to
-#'   `getOption("punycoder.strict", TRUE)`.
+#' Like [url_encode()], this is **best-effort host extraction and rewriting,
+#' not URL parsing or canonicalization**, and is not RFC 3986 / WHATWG URL
+#' conformant (no percent encoding/decoding, scheme/port/path semantics, full
+#' IPv6, or serialization). Those concerns live upstack in `rurl`.
+#'
+#' @section Deprecated:
+#' This function is deprecated and slated for removal in a future release. For
+#' URL parsing and canonicalization use a dedicated URL package (e.g. `rurl`);
+#' for host-only decoding pass the host alone to [puny_decode()].
+#'
+#' @param url Character vector of URL-shaped strings with ASCII punycode hosts
+#' @inheritParams validate_domain
 #' @return A character vector the same length as \code{url}, with each element
 #'   containing the URL with its host portion decoded to Unicode. Only the
 #'   domain component is transformed; scheme, path, query, and fragment are
@@ -64,18 +113,35 @@ url_encode <- function(url, strict = getOption("punycoder.strict", TRUE)) {
 #' )
 #' url_decode(ascii_urls)
 #' }
+#' @keywords internal
 #' @export
 url_decode <- function(url, strict = getOption("punycoder.strict", TRUE)) {
+  .deprecate_url_surface("url_decode")
   .call_with_validation(url, strict, url_decode_cpp, "url")
 }
 
-#' Parse URLs with internationalized domain name handling
+#' Best-effort host extraction from a URL-shaped string
 #'
-#' Parses URLs and returns a structured list with proper handling of
-#' internationalized domain names. This function provides both Unicode
-#' and ASCII representations of domain components.
+#' Splits a URL-shaped string into coarse components with a hand-rolled
+#' splitter, primarily to extract the host for internationalized-domain-name
+#' handling, optionally ASCII-encoding it.
 #'
-#' @param url Character vector of URLs to parse
+#' This is **best-effort host extraction, not a conformant URL parser.** It is
+#' *not* RFC 3986 / WHATWG URL compliant: there is no percent encoding/decoding,
+#' no scheme validation, no robust port/path/query semantics, no full IPv6
+#' (zone IDs / RFC 6874 are unhandled), and no serialization guarantees. The
+#' non-host components are returned as a convenience only; for real URL parsing
+#' and canonicalization use a dedicated URL package (e.g. `rurl`). This surface
+#' is slated for eventual removal in favor of `rurl` consuming punycoder's host
+#' functions.
+#'
+#' @section Deprecated:
+#' This function is deprecated and slated for removal in a future release. For
+#' URL parsing and canonicalization use a dedicated URL package (e.g. `rurl`);
+#' for host-only encoding pass the host alone to [host_normalize()] or
+#' [puny_encode()].
+#'
+#' @param url Character vector of URL-shaped strings to split
 #' @param encode_domains Logical flag; encode parsed host names to ASCII.
 #' @return An object of class \code{"punycoder_parsed_url"} (a named list)
 #'   with components:
@@ -106,8 +172,10 @@ url_decode <- function(url, strict = getOption("punycoder.strict", TRUE)) {
 #' )
 #' parse_url(urls)
 #' }
+#' @keywords internal
 #' @export
 parse_url <- function(url, encode_domains = FALSE) {
+  .deprecate_url_surface("parse_url")
   .assert_character(url)
   .assert_flag(encode_domains, "encode_domains")
   .warn_if_na(url)

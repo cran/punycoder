@@ -11,7 +11,7 @@ is_punycode(x)
 }
 \value{
 A logical vector the same length as \code{x}, where \code{TRUE}
-  indicates the element contains a punycode-encoded label (xn-- prefix).
+indicates the element contains a punycode-encoded label (xn-- prefix).
 }
 \description{
 Determines whether a given string or domain name is already encoded
@@ -21,10 +21,10 @@ in punycode format (starts with xn-- prefix).
 \donttest{
 is_punycode("xn--example") # TRUE
 is_punycode("example.com") # FALSE
-is_punycode(c("xn--caf-dma.com", "regular.com"))  # c(TRUE, FALSE)
+is_punycode(c("xn--caf-dma.com", "regular.com")) # c(TRUE, FALSE)
 }
 }
 \seealso{
 \code{\link{is_idn}} for detecting Unicode domains,
-  \code{\link{puny_decode}} for decoding punycode domains.
+\code{\link{puny_decode}} for decoding punycode domains.
 }
