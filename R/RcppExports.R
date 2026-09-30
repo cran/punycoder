@@ -9,18 +9,6 @@ puny_decode_cpp <- function(domains, strict = TRUE) {
     .Call(`_punycoder_puny_decode_cpp`, domains, strict)
 }
 
-url_encode_cpp <- function(urls, strict = TRUE) {
-    .Call(`_punycoder_url_encode_cpp`, urls, strict)
-}
-
-url_decode_cpp <- function(urls, strict = TRUE) {
-    .Call(`_punycoder_url_decode_cpp`, urls, strict)
-}
-
-parse_url_cpp <- function(urls, encode_domains = FALSE) {
-    .Call(`_punycoder_parse_url_cpp`, urls, encode_domains)
-}
-
 validate_domain_cpp <- function(domains, strict = TRUE) {
     .Call(`_punycoder_validate_domain_cpp`, domains, strict)
 }
@@ -33,11 +21,15 @@ compare_backends_cpp <- function(input, mode, strict = TRUE) {
     .Call(`_punycoder_compare_backends_cpp`, input, mode, strict)
 }
 
-host_normalize_cpp <- function(x, check_hyphens = TRUE, use_std3 = TRUE, verify_dns_length = TRUE) {
-    .Call(`_punycoder_host_normalize_cpp`, x, check_hyphens, use_std3, verify_dns_length)
+host_normalize_cpp <- function(x, unicode_version, check_hyphens = TRUE, use_std3 = TRUE, verify_dns_length = TRUE) {
+    .Call(`_punycoder_host_normalize_cpp`, x, unicode_version, check_hyphens, use_std3, verify_dns_length)
 }
 
 normalization_unicode_version_cpp <- function() {
     .Call(`_punycoder_normalization_unicode_version_cpp`)
+}
+
+unicode_versions_cpp <- function() {
+    .Call(`_punycoder_unicode_versions_cpp`)
 }
 

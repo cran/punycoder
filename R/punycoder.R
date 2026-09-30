@@ -22,10 +22,8 @@
 #'   to \code{NA} inputs are \code{NA_character_}. In non-strict mode, domains
 #'   that fail encoding are also returned as \code{NA_character_}.
 #' @seealso \code{\link{puny_decode}} for the reverse operation,
-#'   \code{\link{host_normalize}} for IDNA/UTS-46 host normalization,
-#'   \code{\link{url_encode}} for full URL encoding.
+#'   \code{\link{host_normalize}} for IDNA/UTS-46 host normalization.
 #' @examples
-#' \donttest{
 #' # Basic encoding
 #' puny_encode("caf\u00E9.com")
 #' puny_encode("\u043C\u043E\u0441\u043A\u0432\u0430.\u0440\u0444")
@@ -37,7 +35,6 @@
 #'   "\u5317\u4EAC.\u4E2D\u56FD"
 #' )
 #' puny_encode(domains)
-#' }
 #' @export
 puny_encode <- function(x, strict = getOption("punycoder.strict", TRUE)) {
   .call_with_validation(x, strict, puny_encode_cpp)
@@ -56,18 +53,14 @@ puny_encode <- function(x, strict = getOption("punycoder.strict", TRUE)) {
 #' or NFC. For IDNA/UTS-46 host normalization, see [host_normalize()].
 #'
 #' @param x Character vector of ASCII punycode domains to decode
-#' @param strict Logical; whether to apply strict validation. Defaults to
-#'   `getOption("punycoder.strict", TRUE)`. In strict mode the raw codec
-#'   enforces structural checks but not DNS host length limits.
+#' @inheritParams puny_encode
 #' @return A character vector the same length as \code{x}, with each element
 #'   containing the Unicode-decoded domain name. Elements corresponding to
 #'   \code{NA} inputs are \code{NA_character_}. In non-strict mode, domains
 #'   that fail decoding are also returned as \code{NA_character_}.
 #' @seealso \code{\link{puny_encode}} for the reverse operation,
-#'   \code{\link{host_normalize}} for IDNA/UTS-46 host normalization,
-#'   \code{\link{url_decode}} for full URL decoding.
+#'   \code{\link{host_normalize}} for IDNA/UTS-46 host normalization.
 #' @examples
-#' \donttest{
 #' # Basic decoding
 #' puny_decode("xn--caf-dma.com")
 #' puny_decode("xn--80adxhks.xn--p1ai")
@@ -75,7 +68,6 @@ puny_encode <- function(x, strict = getOption("punycoder.strict", TRUE)) {
 #' # Vectorized decoding
 #' ascii_domains <- c("xn--caf-dma.com", "xn--80adxhks.xn--p1ai")
 #' puny_decode(ascii_domains)
-#' }
 #' @export
 puny_decode <- function(x, strict = getOption("punycoder.strict", TRUE)) {
   .call_with_validation(x, strict, puny_decode_cpp)

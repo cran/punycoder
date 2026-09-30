@@ -1,6 +1,16 @@
-# Parser for the official UTS #46 corpus (inst/testdata/IdnaTestV2.txt).
+# Parser for the official UTS #46 corpus (inst/testdata/IdnaTestV2-<ver>.txt).
 # Format reference: the file header (Columns c1..c7, status-code legend).
 # Kept in a helper so the conformance test reads as assertions, not parsing.
+
+# One vendored corpus per shipped Unicode version, so each engine is checked
+# against the expectations published WITH it (PUNY-qfautzhz). The filename holds
+# the DOTTED version exactly as unicode_versions() returns it -- no tag
+# translation at the call site. (The C++ side uses an underscore form,
+# unicode_tables_16_0_0.cpp, only because a C++ identifier cannot hold a dot.)
+idna_fixture_path <- function(version) {
+  system.file("testdata", sprintf("IdnaTestV2-%s.txt", version),
+              package = "punycoder")
+}
 
 # Unescape \uXXXX and \x{H+} to the actual character, positionally (so a
 # replacement that is itself a backslash cannot be misinterpreted).
@@ -89,6 +99,16 @@ idna_load_v2 <- function(path) {
   data.frame(
     source = src, to_ascii = asc, status = sts, stringsAsFactors = FALSE
   )
+}
+
+# The corpus as a plain vector of distinct host inputs: both the source column
+# and the expected A-label column, since a valid output is itself a valid input
+# and doubling the pool costs nothing. Used by the tests that compare two table
+# sets or two builds against each other rather than against an expectation.
+idna_v2_corpus <- function(path) {
+  df <- idna_load_v2(path)
+  corpus <- unique(c(df$source, df$to_ascii))
+  corpus[nzchar(corpus)]
 }
 
 # Status codes a profile must IGNORE when a flag is false (file legend).

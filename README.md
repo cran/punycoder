@@ -5,18 +5,12 @@
 
 <!-- badges: start -->
 
-[![Verify](https://github.com/bart-turczynski/punycoder/actions/workflows/verify.yml/badge.svg)](https://github.com/bart-turczynski/punycoder/actions/workflows/verify.yml)
 [![CRAN status](https://www.r-pkg.org/badges/version/punycoder)](https://CRAN.R-project.org/package=punycoder)
 [![CRAN downloads](https://cranlogs.r-pkg.org/badges/punycoder)](https://CRAN.R-project.org/package=punycoder)
-[![Codecov coverage](https://codecov.io/gh/bart-turczynski/punycoder/branch/main/graph/badge.svg)](https://app.codecov.io/gh/bart-turczynski/punycoder)
 [![Lifecycle: stable](https://img.shields.io/badge/lifecycle-stable-brightgreen.svg)](https://lifecycle.r-lib.org/articles/stages.html#stable)
 [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.20973629.svg)](https://doi.org/10.5281/zenodo.20973629)
 [![Zenodo](https://img.shields.io/badge/Zenodo-all_software-1682D4?logo=zenodo&logoColor=white)](https://zenodo.org/search?q=metadata.creators.person_or_org.identifiers.identifier:0000-0002-8788-7980)
-[![FOSSA Status](https://app.fossa.com/api/projects/git%2Bgithub.com%2Fbart-turczynski%2Fpunycoder.svg?type=shield&issueType=license)](https://app.fossa.com/projects/git%2Bgithub.com%2Fbart-turczynski%2Fpunycoder?ref=badge_shield&issueType=license)
-[![FOSSA Status](https://app.fossa.com/api/projects/git%2Bgithub.com%2Fbart-turczynski%2Fpunycoder.svg?type=shield&issueType=security)](https://app.fossa.com/projects/git%2Bgithub.com%2Fbart-turczynski%2Fpunycoder?ref=badge_shield&issueType=security)
 [![OpenSSF Best Practices](https://www.bestpractices.dev/projects/13429/badge)](https://www.bestpractices.dev/projects/13429)
-[![Security audit](https://github.com/bart-turczynski/punycoder/actions/workflows/security-audit.yml/badge.svg)](https://github.com/bart-turczynski/punycoder/actions/workflows/security-audit.yml)
-[![OSV audit](https://github.com/bart-turczynski/punycoder/actions/workflows/osv-audit.yml/badge.svg)](https://github.com/bart-turczynski/punycoder/actions/workflows/osv-audit.yml)
 <!-- badges: end -->
 
 High-performance Unicode and Punycode encoding/decoding for internationalized domain names (IDNs) in R.
@@ -29,6 +23,8 @@ The `punycoder` package provides fast, standards-based conversion between Unicod
 - an **IDNA/UTS-46 host-normalization surface** — `host_normalize()` — mapping a host name to its canonical lowercase ASCII comparison form under a pinned UTS \#46 non-transitional profile.
 
 `host_normalize()` is a **UTS \#46 profile, not IDNA2008 conformance** — UTS \#46 is compatibility processing and deliberately accepts labels IDNA2008 would reject (e.g. `☕.example` → `xn--53h.example`). See `?host_normalize` and `normalization_profile_info()` for the normative profile and full standards references (RFC 3492/5890/5891/5892/5893, UTS \#46, UAX \#15/#44, STD 3, RFC 8753).
+
+Normalization runs against vendored Unicode data, and a build ships a *set* of Unicode versions with one pinned as the default (currently 17.0.0, with 16.0.0 also shipped). `unicode_versions()` reports what the installed build carries, and `host_normalize(x, unicode_version = "16.0.0")` selects another one for a single call — which `normalization_profile_info()` reflects by appending `+unicode-<version>` to the reported profile token.
 
 ## Dependencies
 
@@ -49,11 +45,11 @@ install.packages("punycoder")
 ```
 
 Or install the development version from
-[GitHub](https://github.com/bart-turczynski/punycoder) with:
+[GitLab](https://gitlab.com/bart-turczynski/punycoder) with:
 
 ``` r
 # install.packages("remotes")
-remotes::install_github("bart-turczynski/punycoder")
+remotes::install_gitlab("bart-turczynski/punycoder")
 ```
 
 ### Optional native backend (`libidn2`)
@@ -82,7 +78,7 @@ system("pkg-config --modversion libidn2")
 Then install/reinstall `punycoder`:
 
 ``` r
-remotes::install_github("bart-turczynski/punycoder")
+remotes::install_gitlab("bart-turczynski/punycoder")
 ```
 
 ## Example
@@ -103,43 +99,102 @@ validate_domain("test.com")
 #> Punycoder Domain Validation Results
 #> ==================================
 #> 
+#> 1 domain: 1 valid, 0 invalid (strict = TRUE)
+#> 
 #> Domain: test.com 
 #> Valid:  TRUE
+```
+
+### Command-line use
+
+`punycoder` is a library, not a CLI, but a one-line `Rscript` wrapper covers the
+usual shell need: turning an IDN into the ASCII form that `dig`, `nslookup`, or
+`curl` will actually accept. No extra install, no `bin/` script. The snippets
+below are POSIX `sh`/`bash` — keep the `-e` argument in single quotes so the
+shell leaves the R code alone.
+
+Unicode host → ASCII, via the UTS \#46 canonical form:
+
+``` sh
+Rscript -e 'cat(punycoder::host_normalize(commandArgs(TRUE)), sep = "\n")' münchen.de
+#> xn--mnchen-3ya.de
+```
+
+Use `puny_encode()` instead when you want the raw RFC 3492 transform with no
+UTS \#46 mapping, and `puny_decode()` to go back the other way:
+
+``` sh
+Rscript -e 'cat(punycoder::puny_encode(commandArgs(TRUE)), sep = "\n")' münchen.de
+#> xn--mnchen-3ya.de
+
+Rscript -e 'cat(punycoder::puny_decode(commandArgs(TRUE)), sep = "\n")' xn--mnchen-3ya.de
+#> münchen.de
+```
+
+Feeding a resolver is then just command substitution (drop `sep` so nothing but
+the host is printed):
+
+``` sh
+dig +short "$(Rscript -e 'cat(punycoder::host_normalize(commandArgs(TRUE)))' münchen.de)"
+#> 194.246.166.100
+
+nslookup "$(Rscript -e 'cat(punycoder::host_normalize(commandArgs(TRUE)))' münchen.de)"
+```
+
+All three functions are vectorized, so several hosts can go through one R
+startup and out to `xargs`:
+
+``` sh
+Rscript -e 'cat(punycoder::host_normalize(commandArgs(TRUE)), sep = "\n")' münchen.de москва.рф |
+  xargs -n 1 dig +short
+```
+
+#### Failed conversions
+
+`host_normalize()` never aborts: an input it cannot normalize comes back as
+`NA`, which prints as a literal `NA` line rather than silently disappearing from
+the pipeline.
+
+``` sh
+Rscript -e 'cat(punycoder::host_normalize(commandArgs(TRUE)), sep = "\n")' münchen.de 'bad..domain'
+#> xn--mnchen-3ya.de
+#> NA
+```
+
+`puny_encode()` and `puny_decode()` behave differently: they are strict by
+default, so a bad input stops the script with a non-zero exit status.
+
+``` sh
+Rscript -e 'cat(punycoder::puny_encode(commandArgs(TRUE)), sep = "\n")' 'bad..domain'
+#> Error: Error encoding domain: Domain contains empty label
+#> Execution halted
+```
+
+Pass `strict = FALSE` to get the per-element `NA` behavior instead, so one bad
+host does not take down a batch:
+
+``` sh
+Rscript -e 'cat(punycoder::puny_encode(commandArgs(TRUE), strict = FALSE), sep = "\n")' münchen.de 'bad..domain'
+#> xn--mnchen-3ya.de
+#> NA
+```
+
+Since `NA` is printed, not swallowed, drop it before piping to a resolver —
+otherwise `dig` dutifully looks up a host named `NA`:
+
+``` sh
+Rscript -e 'h <- punycoder::host_normalize(commandArgs(TRUE)); cat(h[!is.na(h)], sep = "\n")' münchen.de 'bad..domain' |
+  xargs -n 1 dig +short
 ```
 
 ## Key Features
 
 - **Reliable Encoding/Decoding**: RFC 3492 compliant punycode conversion
-- **Best-effort host rewriting**: Swap the host of a URL-shaped string in place (not a full URL parser; see below)
 - **High Performance**: Vectorized operations for processing large datasets
 - **Comprehensive Validation**: Robust error handling with informative messages
 - **Flexible Backend**: Automatically uses `libidn2` when available, with a built-in fallback backend
 
 ## Use Cases
-
-### Web Scraping
-
-Process international websites with Unicode domain names:
-
-``` r
-international_urls <- c(
-  "https://café.paris.fr/menu",
-  "https://москва.рф/news",
-  "https://北京.中国/info"
-)
-
-# Convert for HTTP requests (best-effort host rewriting only)
-ascii_urls <- url_encode(international_urls)
-```
-
-> `url_encode()`, `url_decode()`, and `parse_url()` do **best-effort host
-> extraction and rewriting**, not RFC 3986 / WHATWG URL parsing or
-> canonicalization. They have no percent encoding/decoding, scheme validation,
-> robust port/path/query semantics, full IPv6 (zone IDs / RFC 6874), or
-> serialization guarantees, and are slated for eventual removal in favor of a
-> dedicated URL package consuming punycoder’s host functions. Use
-> `host_normalize()` / `puny_encode()` directly when you control the host
-> parse.
 
 ### Data Analysis
 
@@ -158,8 +213,7 @@ validate_domain(c("valid.com", "invalid..domain"))
 `punycoder` currently provides:
 
 - Low-level Punycode codec: `puny_encode()`, `puny_decode()`
-- IDNA/UTS-46 host normalization: `host_normalize()`, `normalization_profile_info()`
-- Best-effort URL host rewriting/extraction (not URL parsing/canonicalization): `url_encode()`, `url_decode()`, `parse_url()`
+- IDNA/UTS-46 host normalization: `host_normalize()`, `normalization_profile_info()`, `unicode_versions()`
 - Domain validation utilities: `is_punycode()`, `is_idn()`, `validate_domain()`
 - Vectorized operations and strict/non-strict handling for malformed input
 - Build-time backend selection (`libidn2` when present, built-in fallback otherwise)
@@ -177,8 +231,9 @@ part of its acceptance criteria:
   is visually safe or non-deceptive. Confusable and restriction-level checks
   (UTS \#39 / UTR \#36, which UTS \#46 itself recommends only as application/UI-layer
   steps) belong upstack.
-- **No URL canonicalization.** The `url_*` / `parse_url()` helpers do best-effort
-  host rewriting only (see above), not RFC 3986 / WHATWG URL parsing.
+- **No URL parsing or canonicalization.** RFC 3986 / WHATWG URL parsing and
+  canonicalization belong upstack; see the `rurl` package, which consumes
+  punycoder’s host functions.
 - **No DNS resolvability or registrability / PSL classification.**
 - **No address parsing.** There is no `email`-to-ASCII helper; splitting an
   address and IDNA-encoding its domain part is an addressing concern for an
@@ -204,9 +259,9 @@ situates it against representative libraries.
 | Engine | `libidn2` + in-tree fallback | GNU `libidn` | pure Dart | Go `x/net/idna` |
 | IDNA standard | 2008 / UTS #46 (non-transitional) | 2003 (nameprep) | RFC 3492 + IDNA helpers | UTS #46 (via `x/net`) |
 | Unicode NFC | explicit (UAX #15) | implicit in nameprep | not documented | via `x/net` |
-| Pinned Unicode version | yes — 16.0.0, regenerable | no (frozen at build) | no | tracks Go release |
+| Pinned Unicode version | yes — 17.0.0, regenerable; 16.0.0 also selectable | no (frozen at build) | no | tracks Go release |
 | CheckBidi / CheckJoiners | always on | not surfaced | not documented | partial |
-| UTS #46 conformance corpus (`IdnaTestV2`) | yes | no | no | — |
+| UTS #46 conformance corpus (`IdnaTestV2`) | yes — one per shipped Unicode version | no | no | — |
 | Strict / `NA` per-element policy | yes | undocumented | `validate` flag | n/a (CLI) |
 | Vectorized | yes | yes | n/a | n/a |
 | Maintenance | active | last commit 2015 | maintained | maintained |
@@ -226,7 +281,7 @@ situates it against representative libraries.
 
 Running the same inputs through the comparable R packages surfaces concrete
 behavioral differences (observed against `punycode` 0.2.5, `urltools` 1.7.3.1,
-and the author’s own upstack toolkit [`rurl`](https://bart-turczynski.github.io/rurl/)
+and the author’s own upstack toolkit [`rurl`](https://CRAN.R-project.org/package=rurl)
 1.4.0). The raw RFC 3492 codec output agrees byte-for-byte across the codecs
 once direction is aligned — the divergences are in multi-label handling,
 idempotency, validity philosophy, and input scope. `rurl` is a URL
@@ -251,7 +306,7 @@ scope for that layer,” not a defect:
 > `punycode::puny_decode()` maps Unicode → `xn--`. The rows above align
 > by transform direction, not by function name.
 >
-> `punycoder` + `rurl` (+ [`pslr`](https://bart-turczynski.github.io/pslr/) for
+> `punycoder` + `rurl` (+ [`pslr`](https://CRAN.R-project.org/package=pslr) for
 > the public-suffix/TLD truth) are designed to compose: `rurl` parses the URL and
 > hands the host to `punycoder` for IDNA canonicalization, each package owning a
 > single concern.
@@ -259,19 +314,19 @@ scope for that layer,” not a defect:
 ## Acknowledgments
 
 These packages build on data, libraries, and prior work from many others.
-See [ACKNOWLEDGMENTS.md](https://github.com/bart-turczynski/punycoder/blob/main/ACKNOWLEDGMENTS.md) for the full list of thanks.
+See [ACKNOWLEDGMENTS.md](https://gitlab.com/bart-turczynski/punycoder/-/blob/main/ACKNOWLEDGMENTS.md) for the full list of thanks.
 
 ## Related packages
 
 `punycoder` is part of a small ecosystem of R packages by the same author:
 
-- **[pslr](https://bart-turczynski.github.io/pslr/)** — Public Suffix List engine that uses `punycoder` for IDNA canonicalization. Use it for eTLD and registrable-domain queries.
-- **[rurl](https://bart-turczynski.github.io/rurl/)** — Full URL parsing, normalization, and joining toolkit built on top of both `punycoder` and `pslr`.
+- **[pslr](https://CRAN.R-project.org/package=pslr)** — Public Suffix List engine that uses `punycoder` for IDNA canonicalization. Use it for eTLD and registrable-domain queries.
+- **[rurl](https://CRAN.R-project.org/package=rurl)** — Full URL parsing, normalization, and joining toolkit built on top of both `punycoder` and `pslr`.
 
 ## Citation
 
 If you use `punycoder` in your work, please cite it. Run `citation("punycoder")`
-for the current citation, or see [`CITATION.cff`](https://github.com/bart-turczynski/punycoder/blob/main/CITATION.cff).
+for the current citation, or see [`CITATION.cff`](https://gitlab.com/bart-turczynski/punycoder/-/blob/main/CITATION.cff).
 
 Each release is archived on Zenodo. Cite the concept DOI
 [10.5281/zenodo.20973629](https://doi.org/10.5281/zenodo.20973629) to refer to
@@ -281,11 +336,11 @@ record](https://doi.org/10.5281/zenodo.20973629) for a particular release.
 
 ## Contributing
 
-We welcome contributions. See [CONTRIBUTING.md](https://github.com/bart-turczynski/punycoder/blob/main/CONTRIBUTING.md) for the
+We welcome contributions. See [CONTRIBUTING.md](https://gitlab.com/bart-turczynski/punycoder/-/blob/main/CONTRIBUTING.md) for the
 current development workflow,
-[ARCHITECTURE.md](https://github.com/bart-turczynski/punycoder/blob/main/ARCHITECTURE.md)
+[ARCHITECTURE.md](https://gitlab.com/bart-turczynski/punycoder/-/blob/main/ARCHITECTURE.md)
 for how the package is structured, and
-[DECISIONS.md](https://github.com/bart-turczynski/punycoder/blob/main/DECISIONS.md)
+[DECISIONS.md](https://gitlab.com/bart-turczynski/punycoder/-/blob/main/DECISIONS.md)
 for the design-decision log.
 
 ## Code of Conduct

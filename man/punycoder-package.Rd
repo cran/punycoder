@@ -25,14 +25,22 @@ Use the codec when you need the literal ASCII-Compatible Encoding of a
 label; use \code{\link[=host_normalize]{host_normalize()}} when you need a standards-profiled
 comparison form for a host name.
 }
+\examples{
+# Tier 1 - low-level codec: the raw RFC 3492 transform.
+puny_encode("caf\u00E9.com")
+puny_decode("xn--caf-dma.com")
+
+# Tier 2 - UTS #46: canonical lowercase ASCII comparison form.
+host_normalize(c("Example.COM", "M\u00DCNCHEN.de"))
+
+}
 \seealso{
 Useful links:
 \itemize{
-  \item \url{https://bart-turczynski.github.io/punycoder/}
-  \item \url{https://github.com/bart-turczynski/punycoder}
-  \item \url{https://bart-turczynski.r-universe.dev/punycoder}
+  \item \url{https://gitlab.com/bart-turczynski/punycoder}
+  \item \url{https://bart-turczynski.gitlab.io/punycoder/}
   \item \url{https://CRAN.R-project.org/package=punycoder}
-  \item Report bugs at \url{https://github.com/bart-turczynski/punycoder/issues}
+  \item Report bugs at \url{https://gitlab.com/bart-turczynski/punycoder/-/issues}
 }
 
 }
@@ -45,3 +53,4 @@ Authors:
 }
 
 }
+\keyword{internal}

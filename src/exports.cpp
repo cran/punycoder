@@ -1,13 +1,11 @@
 #include <Rcpp.h>
 
-#include <cstdlib>
-#include <limits>
 #include <stdexcept>
 #include <string>
 
 #include "punycoder_core.h"
 #include "punycoder_normalize.h"
-#include "unicode_tables_16_0_0.h"
+#include "punycoder_unicode_version.h"
 
 namespace {
 
@@ -27,7 +25,8 @@ Rcpp::CharacterVector transform_strings(
                 continue;
             }
 
-            output[i] = fn(Rcpp::as<std::string>(input[i]));
+            const std::string value = fn(Rcpp::as<std::string>(input[i]));
+            output[i] = Rcpp::String(value, CE_UTF8);
         } catch (const std::exception& e) {
             if (strict) {
                 Rcpp::stop("%s: %s", error_prefix, e.what());
@@ -49,12 +48,6 @@ std::string apply_backend_mode(
     }
     if (mode == "decode_domain") {
         return service.decode_domain(value);
-    }
-    if (mode == "encode_url") {
-        return service.encode_url(value);
-    }
-    if (mode == "decode_url") {
-        return service.decode_url(value);
     }
 
     throw std::invalid_argument("Unknown backend comparison mode");
@@ -103,105 +96,6 @@ Rcpp::CharacterVector puny_decode_cpp(Rcpp::CharacterVector domains, bool strict
             }
             return service.decode_domain(domain);
         }
-    );
-}
-
-// [[Rcpp::export]]
-Rcpp::CharacterVector url_encode_cpp(Rcpp::CharacterVector urls, bool strict = true) {
-    punycoder::PunycodeService service(strict);
-    return transform_strings(
-        urls,
-        strict,
-        "Error encoding URL",
-        [&](const std::string& url) {
-            return service.encode_url(url);
-        }
-    );
-}
-
-// [[Rcpp::export]]
-Rcpp::CharacterVector url_decode_cpp(Rcpp::CharacterVector urls, bool strict = true) {
-    punycoder::PunycodeService service(strict);
-    return transform_strings(
-        urls,
-        strict,
-        "Error decoding URL",
-        [&](const std::string& url) {
-            return service.decode_url(url);
-        }
-    );
-}
-
-// [[Rcpp::export]]
-Rcpp::List parse_url_cpp(Rcpp::CharacterVector urls, bool encode_domains = false) {
-    R_xlen_t n = urls.size();
-    Rcpp::CharacterVector scheme(n, NA_STRING);
-    Rcpp::CharacterVector domain(n, NA_STRING);
-    Rcpp::IntegerVector port(n, NA_INTEGER);
-    Rcpp::CharacterVector path(n, NA_STRING);
-    Rcpp::CharacterVector query(n, NA_STRING);
-    Rcpp::CharacterVector fragment(n, NA_STRING);
-    punycoder::PunycodeService service(false);
-
-    for (R_xlen_t i = 0; i < n; ++i) {
-        if (Rcpp::CharacterVector::is_na(urls[i])) {
-            continue;
-        }
-
-        std::string url = Rcpp::as<std::string>(urls[i]);
-        punycoder::ParsedURL parsed = punycoder::parse_url_string(url);
-        if (!parsed.valid) {
-            continue;
-        }
-
-        if (!parsed.scheme.empty()) {
-            scheme[i] = parsed.scheme;
-        }
-
-        if (!parsed.path.empty()) {
-            path[i] = parsed.path;
-        } else {
-            path[i] = "";
-        }
-
-        if (parsed.has_query) {
-            query[i] = parsed.query;
-        }
-        if (parsed.has_fragment) {
-            fragment[i] = parsed.fragment;
-        }
-
-        if (!parsed.host.empty()) {
-            if (encode_domains && parsed.host_kind == punycoder::HostKind::dns) {
-                try {
-                    domain[i] = service.encode_domain(parsed.host);
-                } catch (const std::exception&) {
-                    domain[i] = NA_STRING;
-                }
-            } else {
-                domain[i] = parsed.host;
-            }
-        }
-
-        if (!parsed.port.empty()) {
-            char* end_ptr = nullptr;
-            long parsed_port = std::strtol(parsed.port.c_str(), &end_ptr, 10);
-            if (end_ptr != nullptr &&
-                *end_ptr == '\0' &&
-                parsed_port >= 0 &&
-                parsed_port <= std::numeric_limits<int>::max()) {
-                port[i] = static_cast<int>(parsed_port);
-            }
-        }
-    }
-
-    return Rcpp::List::create(
-        Rcpp::Named("scheme") = scheme,
-        Rcpp::Named("domain") = domain,
-        Rcpp::Named("port") = port,
-        Rcpp::Named("path") = path,
-        Rcpp::Named("query") = query,
-        Rcpp::Named("fragment") = fragment
     );
 }
 
@@ -276,7 +170,7 @@ Rcpp::List compare_backends_cpp(
     Rcpp::CharacterVector fallback(input.size());
     Rcpp::CharacterVector libidn2(input.size());
     bool has_libidn2 = punycoder::libidn2_backend_available();
-    bool verify_dns_length = mode == "encode_url" || mode == "decode_url";
+    bool verify_dns_length = false;
 
     punycoder::PunycodeService fallback_service(
         strict,
@@ -297,9 +191,15 @@ Rcpp::List compare_backends_cpp(
         }
 
         std::string value = Rcpp::as<std::string>(input[i]);
-        fallback[i] = safe_backend_mode(fallback_service, mode, value);
+        fallback[i] = Rcpp::String(
+            safe_backend_mode(fallback_service, mode, value),
+            CE_UTF8
+        );
         if (has_libidn2) {
-            libidn2[i] = safe_backend_mode(libidn2_service, mode, value);
+            libidn2[i] = Rcpp::String(
+                safe_backend_mode(libidn2_service, mode, value),
+                CE_UTF8
+            );
         } else {
             libidn2[i] = NA_STRING;  // # nocov (only on builds without libidn2, e.g. Windows)
         }
@@ -317,8 +217,18 @@ Rcpp::List compare_backends_cpp(
 // NA-on-invalid signal). The result is always lowercase ASCII, so no element
 // encoding needs to be set. Names are preserved.
 //
+// `unicode_version` selects the table set and is always an explicit string: R
+// resolves its own NULL-means-the-pin default before calling, so no version
+// argument is ever absent by the time it reaches here. An unshipped version
+// stops rather than returning NA -- that is a caller error, not invalid host
+// data, and silently falling back to the default would make a reproducibility
+// key describe a normalization that never happened (PUNY-nblrvplp). R checks
+// first and produces the actionable message; this check is the backstop for
+// the internal callers that bypass it.
+//
 // [[Rcpp::export]]
 Rcpp::CharacterVector host_normalize_cpp(Rcpp::CharacterVector x,
+                                         std::string unicode_version,
                                          bool check_hyphens = true,
                                          bool use_std3 = true,
                                          bool verify_dns_length = true) {
@@ -329,6 +239,10 @@ Rcpp::CharacterVector host_normalize_cpp(Rcpp::CharacterVector x,
     opts.check_hyphens = check_hyphens;
     opts.use_std3 = use_std3;
     opts.verify_dns_length = verify_dns_length;
+    if (!punycoder::unicode_version_from_string(unicode_version.c_str(),
+                                                opts.unicode_version)) {
+        Rcpp::stop("Unsupported Unicode version: " + unicode_version);
+    }
 
     for (R_xlen_t i = 0; i < n; ++i) {
         if (Rcpp::CharacterVector::is_na(x[i])) {
@@ -345,10 +259,39 @@ Rcpp::CharacterVector host_normalize_cpp(Rcpp::CharacterVector x,
     return out;
 }
 
-// Pinned Unicode version of the vendored UTS-46 + NFC data, the single source
-// of truth read by normalization_profile_info() (contract section 7).
+// Unicode version of the table set host_normalize() uses by default -- the
+// single source of truth read by normalization_profile_info() (contract
+// section 7). Reported from the version registry rather than from a table
+// header, so this file does not recompile when a table set is added.
 //
 // [[Rcpp::export]]
 std::string normalization_unicode_version_cpp() {
-    return std::string(punycoder::u16::UNICODE_VERSION);
+    return std::string(
+        punycoder::unicode_version_string(punycoder::kDefaultUnicodeVersion));
+}
+
+// Every shipped table set: the string the registry gives it, the string its own
+// table unit reports (see table_reported_version(), which is how a facade
+// paired with the wrong version is caught), and which one is the pinned
+// default. Backs the exported unicode_versions() and the actionable
+// "shipped versions are ..." half of an unsupported-version error.
+//
+// [[Rcpp::export]]
+Rcpp::List unicode_versions_cpp() {
+    const std::size_t n = punycoder::unicode_version_count();
+    Rcpp::CharacterVector registry(n);
+    Rcpp::CharacterVector reported(n);
+
+    for (std::size_t i = 0; i < n; ++i) {
+        const punycoder::UnicodeVersion v = punycoder::unicode_version_at(i);
+        registry[i] = punycoder::unicode_version_string(v);
+        reported[i] = punycoder::table_reported_version(v);
+    }
+
+    return Rcpp::List::create(
+        Rcpp::Named("version") = registry,
+        Rcpp::Named("reported") = reported,
+        Rcpp::Named("default") = std::string(punycoder::unicode_version_string(
+            punycoder::kDefaultUnicodeVersion))
+    );
 }

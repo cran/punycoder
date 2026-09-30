@@ -113,6 +113,24 @@ test_that("backend comparison propagates NA inputs as NA", {
   }
 })
 
+test_that("backend comparison transcodes Latin-1 input to UTF-8", {
+  latin1 <- latin1_bytes(0x63, 0x61, 0x66, 0xE9, 0x2E, 0x63, 0x6F, 0x6D)
+  encoded <- punycoder:::.compare_backends(latin1, "encode_domain")
+
+  expect_identical(encoded$fallback, "xn--caf-dma.com")
+  if (isTRUE(encoded$available)) {
+    expect_identical(encoded$libidn2, "xn--caf-dma.com")
+  }
+
+  decoded <- punycoder:::.compare_backends(
+    "xn--caf-dma.com", "decode_domain"
+  )
+  expect_identical(Encoding(decoded$fallback), "UTF-8")
+  if (isTRUE(decoded$available)) {
+    expect_identical(Encoding(decoded$libidn2), "UTF-8")
+  }
+})
+
 test_that("backend comparison reports unsupported modes as errors", {
   result <- punycoder:::.compare_backends("example.com", "bogus_mode")
 
@@ -152,24 +170,6 @@ test_that("fallback and libidn2 agree to reject malformed domains", {
   skip_if(!d$available, "libidn2 backend is not available")
   expect_identical(d$fb_reject, d$li_reject)
   expect_true(all(d$fb_reject))
-})
-
-test_that("fallback and libidn2 agree on representative URL cases", {
-  unicode_urls <- c(
-    "https://café.example.com/path?query=value",
-    "https://user:pass@παράδειγμα.ελ:8443/path#frag",
-    "http://127.0.0.1/path",
-    "http://[2001:db8::1]/path"
-  )
-  expect_backend_parity(unicode_urls, "encode_url", strict = TRUE)
-
-  ascii_urls <- c(
-    "https://xn--caf-dma.example.com/path",
-    "https://user:pass@xn--hxajbheg2az3al.xn--qxam:8443/path#frag",
-    "http://127.0.0.1/path",
-    "http://[2001:db8::1]/path"
-  )
-  expect_backend_parity(ascii_urls, "decode_url", strict = TRUE)
 })
 
 # --- Fallback correctness without libidn2 ---------------------------------

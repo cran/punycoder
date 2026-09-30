@@ -32,7 +32,6 @@ helper, not an IDNA normalization API}: it does not apply UTS #46 mapping
 or NFC. For IDNA/UTS-46 host normalization, see \code{\link[=host_normalize]{host_normalize()}}.
 }
 \examples{
-\donttest{
 # Basic decoding
 puny_decode("xn--caf-dma.com")
 puny_decode("xn--80adxhks.xn--p1ai")
@@ -41,9 +40,7 @@ puny_decode("xn--80adxhks.xn--p1ai")
 ascii_domains <- c("xn--caf-dma.com", "xn--80adxhks.xn--p1ai")
 puny_decode(ascii_domains)
 }
-}
 \seealso{
 \code{\link{puny_encode}} for the reverse operation,
-\code{\link{host_normalize}} for IDNA/UTS-46 host normalization,
-\code{\link{url_decode}} for full URL decoding.
+\code{\link{host_normalize}} for IDNA/UTS-46 host normalization.
 }

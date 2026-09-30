@@ -11,14 +11,17 @@ is_idn(x)
 }
 \value{
 A logical vector the same length as \code{x}, where \code{TRUE}
-indicates the element contains non-ASCII Unicode characters.
+indicates the element contains non-ASCII Unicode characters. Never
+\code{NA} and never an error: an element that is not well-formed UTF-8 is
+reported as \code{FALSE}, matching \code{\link{is_punycode}} and base R's
+own \code{\link{validUTF8}}. Use \code{validUTF8(x)} to tell "not
+internationalized" apart from "not well-formed text".
 }
 \description{
 Determines whether a domain name contains Unicode characters that
 would require punycode encoding for ASCII compatibility.
 }
 \examples{
-\donttest{
 is_idn("caf\u00E9.com") # TRUE
 is_idn("example.com") # FALSE
 is_idn(c(
@@ -26,7 +29,6 @@ is_idn(c(
   "\u043C\u043E\u0441\u043A\u0432\u0430.\u0440\u0444",
   "test.com"
 )) # c(TRUE, TRUE, FALSE)
-}
 }
 \seealso{
 \code{\link{is_punycode}} for detecting punycode domains,

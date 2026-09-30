@@ -23,19 +23,6 @@ knitr::opts_chunk$set(
 # encoded <- puny_encode(domains)
 # print(encoded)
 
-## ----url-processing, eval=FALSE-----------------------------------------------
-# # Encode URLs with Unicode domains
-# url_encode(paste0("https", "://", "café.example.com/menu"))
-# 
-# # Decode URLs back to Unicode
-# url_decode(paste0("https", "://", "xn--caf-dma.example.com/menu"))
-# 
-# # Parse URLs with IDN handling
-# url_parts <- parse_url(
-#   paste0("https", "://", "café.example.com:8080/path?q=test#section")
-# )
-# print(url_parts)
-
 ## ----validation, eval=FALSE---------------------------------------------------
 # # Check if domain is already punycode
 # is_punycode("xn--caf-dma.com") # TRUE
@@ -49,26 +36,32 @@ knitr::opts_chunk$set(
 # result <- validate_domain(c("café.com", "invalid..domain", "valid.org"))
 # print(result)
 
-## ----web-scraping, eval=FALSE-------------------------------------------------
-# # Example: Processing international URLs for web scraping
-# international_hosts <- c("café.paris.fr", "москва.рф", "北京.中国")
-# international_paths <- c("/menu", "/news", "/info")
-# international_urls <- paste0(
-#   "https",
-#   "://",
-#   international_hosts,
-#   international_paths
-# )
-# 
-# # Convert to ASCII for HTTP requests
-# ascii_urls <- url_encode(international_urls)
-# print(ascii_urls)
-# 
-# # Process the data...
-# 
-# # Convert back to Unicode for display
-# display_urls <- url_decode(ascii_urls)
-# print(display_urls)
+## ----normalize----------------------------------------------------------------
+library(punycoder)
+
+# Mapped, case-folded, validated, then encoded
+host_normalize("Café.Example.COM")
+
+# The codec transforms what it is given, and leaves case alone
+puny_encode("Café.Example.COM")
+
+## ----normalize-na-------------------------------------------------------------
+host_normalize(c("valid.example", "example..com", "-bad-.example"))
+
+## ----normalize-profile--------------------------------------------------------
+normalization_profile_info()
+
+## ----unicode-versions---------------------------------------------------------
+unicode_versions()
+
+## ----unicode-version-select---------------------------------------------------
+host <- paste0(intToUtf8(0xA7CF), ".example")
+
+host_normalize(host, unicode_version = "16.0.0")
+host_normalize(host, unicode_version = "17.0.0")
+
+## ----unicode-version-profile--------------------------------------------------
+normalization_profile_info(unicode_version = "16.0.0")$profile
 
 ## ----bulk-processing, eval=FALSE----------------------------------------------
 # # Example: Processing large datasets
@@ -131,11 +124,11 @@ knitr::opts_chunk$set(
 # 
 # # With dplyr
 # library(dplyr)
-# urls_df <- data.frame(
-#   unicode_url = paste0("https", "://", c("café.com", "москва.рф"))
+# domains_df <- data.frame(
+#   unicode_domain = c("café.com", "москва.рф")
 # ) |>
 #   mutate(
-#     ascii_url = url_encode(unicode_url),
-#     is_international = is_idn(unicode_url)
+#     ascii_domain = puny_encode(unicode_domain),
+#     is_international = is_idn(unicode_domain)
 #   )
 

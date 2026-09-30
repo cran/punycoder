@@ -1,7 +1,7 @@
 Package: punycoder
 Type: Package
 Title: Unicode and Punycode Domain Name Processing
-Version: 1.2.1
+Version: 1.3.0
 Authors@R: person("Bart", "Turczynski", email = "bartek@turczynski.pl",
                   role = c("aut", "cre"),
                   comment = c(ORCID = "0000-0002-8788-7980"))
@@ -13,22 +13,19 @@ Description: High-performance Unicode and Punycode processing for
     apply Unicode IDNA normalization. 'host_normalize()' is the Unicode
     Technical Standard #46 host-normalization entry point, mapping a host
     name to a canonical lowercase ASCII comparison form (non-transitional
-    profile, pinned Unicode version). The 'url_encode()' / 'url_decode()' /
-    'parse_url()' helpers do best-effort host extraction and rewriting in
-    URL-shaped strings and are deliberately not RFC 3986 / WHATWG URL
-    parsers or canonicalizers; they are deprecated in favor of dedicated
-    URL packages. Aimed at host normalization and data analysis workflows.
-    Used as the Punycode and IDNA engine by the 'pslr' and 'rurl' packages.
+    profile, pinned default Unicode version, selectable per call from the
+    set the build ships). Aimed at host normalization and data analysis
+    workflows. Used as the Punycode and IDNA engine by the 'pslr' and
+    'rurl' packages.
 Depends: R (>= 3.5.0)
 Imports: Rcpp (>= 1.0.0)
 LinkingTo: Rcpp
 SystemRequirements: GNU libidn2 (optional, for native punycode backend)
 License: MIT + file LICENSE
-URL: https://bart-turczynski.github.io/punycoder/,
-        https://github.com/bart-turczynski/punycoder,
-        https://bart-turczynski.r-universe.dev/punycoder,
+URL: https://gitlab.com/bart-turczynski/punycoder,
+        https://bart-turczynski.gitlab.io/punycoder/,
         https://CRAN.R-project.org/package=punycoder
-BugReports: https://github.com/bart-turczynski/punycoder/issues
+BugReports: https://gitlab.com/bart-turczynski/punycoder/-/issues
 Encoding: UTF-8
 Language: en-US
 Suggests: testthat (>= 3.0.0), knitr, rmarkdown, oysteR, rosv
@@ -39,9 +36,9 @@ X-schema.org-keywords: punycode, punycode encode, punycode decode,
         IDNA, IDN, internationalized domain names, UTS-46, RFC 3492,
         Unicode, host normalization, hostname, domain names, TLD
 NeedsCompilation: yes
-Packaged: 2026-07-19 17:07:35 UTC; bartturczynski
+Packaged: 2026-09-29 22:08:21 UTC; bartturczynski
 Author: Bart Turczynski [aut, cre] (ORCID:
     <https://orcid.org/0000-0002-8788-7980>)
 Maintainer: Bart Turczynski <bartek@turczynski.pl>
 Repository: CRAN
-Date/Publication: 2026-07-19 18:10:02 UTC
+Date/Publication: 2026-09-30 15:20:02 UTC
